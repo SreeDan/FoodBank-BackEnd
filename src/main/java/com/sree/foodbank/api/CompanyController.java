@@ -4,8 +4,7 @@ import com.sree.foodbank.model.Company;
 import com.sree.foodbank.service.CompanyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -14,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@RequestMapping("/api/v1/company")
+@RequestMapping
 @RestController
 public class CompanyController {
     private final CompanyService companyService;
@@ -29,7 +28,7 @@ public class CompanyController {
         companyService.addCompany(company);
     }
 
-    @GetMapping
+    @GetMapping(path = "")
     public List<Company> getallCompanies() {
         return companyService.getAllCompanies();
     }
@@ -48,10 +47,5 @@ public class CompanyController {
     @PutMapping(path = "{id}")
     public void updateCompany(@PathVariable("id") UUID id, @Valid @NonNull @RequestBody Company companyUpdate) {
         companyService.updateCompany(id, companyUpdate);
-    }
-
-    @GetMapping(path = "user")
-    public Map<String, Object> user(@AuthenticationPrincipal OAuth2User principal) {
-        return Collections.singletonMap("email", principal.getAttribute("email"));
     }
 }
