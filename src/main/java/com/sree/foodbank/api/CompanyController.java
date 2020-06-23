@@ -8,12 +8,10 @@ import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-@RequestMapping
+@RequestMapping("/api/v1/company")
 @RestController
 public class CompanyController {
     private final CompanyService companyService;
@@ -27,23 +25,19 @@ public class CompanyController {
     public void addCompany(@Valid @NonNull @RequestBody Company company) {
         companyService.addCompany(company);
     }
-
-    @GetMapping(path = "")
+    @GetMapping
     public List<Company> getallCompanies() {
         return companyService.getAllCompanies();
     }
-
     @GetMapping(path = "{id}")
     public Company getCompanyById(@PathVariable("id") UUID id) {
         return companyService.getCompanybyId((id))
                 .orElse(null);
     }
-
     @DeleteMapping(path = "{id}")
     public void deleteCompany(@PathVariable("id") UUID id) {
         companyService.deleteCompany(id);
     }
-
     @PutMapping(path = "{id}")
     public void updateCompany(@PathVariable("id") UUID id, @Valid @NonNull @RequestBody Company companyUpdate) {
         companyService.updateCompany(id, companyUpdate);
