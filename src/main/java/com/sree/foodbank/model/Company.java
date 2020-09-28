@@ -3,24 +3,33 @@ package com.sree.foodbank.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.validation.constraints.NotBlank;
-import java.util.UUID;
+import java.math.BigDecimal;
 
 public class Company {
-    private final UUID id;
-    private final String food;
+    private final BigDecimal id;
+    private final Object address;
+    private final String token;
+//    private final String food;
 
     @NotBlank
     private final String name;
+    private final String userType;
 
-    public Company(@JsonProperty("id") UUID id,
+    public Company(@JsonProperty("id") BigDecimal id,
                    @JsonProperty("name") String name,
-                   @JsonProperty("food") String food) {
+                   @JsonProperty("address") Object address,
+                   @JsonProperty("token") String token,
+                   @JsonProperty("userType") String userType) {
+//                   @JsonProperty("food") String food) {
         this.id = id;
         this.name = name;
-        this.food = food;
+        this.address = address;
+        this.token = token;
+        this.userType = userType;
+//        this.food = food;
     }
 
-    public UUID getId() {
+    public BigDecimal getId() {
         return id;
     }
 
@@ -28,7 +37,19 @@ public class Company {
         return name;
     }
 
-    public String getFood() {
+    public Object getAddress() {
+        return address;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public String getUserType() {
+        return userType;
+    }
+/*    public String getFood() {
         return food;
     }
+ */
 }
