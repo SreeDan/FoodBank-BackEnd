@@ -7,7 +7,19 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 import com.sree.foodbank.model.*;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.json.simple.JSONArray;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +38,8 @@ import java.math.BigDecimal;
 
 import java.security.GeneralSecurityException;
 import java.sql.*;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.Date;
 
@@ -41,18 +52,23 @@ public class CompanyDataAccessService implements CompanyDao {
     String user;
     String password;
     String googleKey;
+    String sendGridKey;
     {
         try {
             File postgresObj = new File("path/to/postgres/secret");
             File googleObj = new File("path/to/google/secret");
+            File sendGridObj = new File("path/to/sendgrid/secret");
             Scanner postgresReader = new Scanner(postgresObj);
             Scanner googleReader = new Scanner(googleObj);
+            Scanner sendGridReader = new Scanner(sendGridObj);
             url = postgresReader.nextLine();
             user = postgresReader.nextLine();
             password = postgresReader.nextLine();
             googleKey = googleReader.nextLine();
+            sendGridKey = sendGridReader.nextLine();
             postgresReader.close();
             googleReader.close();
+            sendGridReader.close();
         } catch (FileNotFoundException e) {
             System.out.println("An error occurred.");
             e.printStackTrace();
@@ -116,14 +132,37 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     @Override
-    public boolean login(Login login) throws SQLException {
+    public String login(Login login) throws SQLException {
         final String sql = "SELECT * FROM credentials WHERE username = ? AND password = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setString(1, login.getUsername());
             pst.setString(2, login.getPassword());
             ResultSet rs = pst.executeQuery();
-            return rs.next();
+            Instant now = Instant.now();
+            byte[] secret = Base64.getDecoder().decode("decoder");
+            String id = getId(login.getUsername(), login.getPassword()).toString();
+            String jwt = Jwts.builder()
+                    .setSubject(id)
+                    .setAudience("Audience")
+                    .setIssuedAt(Date.from(now))
+                    .signWith(Keys.hmacShaKeyFor(secret))
+                    .compact();
+            System.out.println(jwt);
+            return jwt;
+        }
+    }
+
+    public BigDecimal getId(String user, String password) throws SQLException {
+        final String sql = "SELECT * FROM credentials WHERE username = ? AND password = ?";
+        try (Connection con = DriverManager.getConnection(url, this.user, this.password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, user);
+            pst.setString(2, password);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next())
+                return rs.getBigDecimal("id");
+            return new BigDecimal(0);
         }
     }
 
@@ -167,11 +206,11 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setObject(4, jsonObject);
             pst.setString(5, company.getUserType());
             pst.executeUpdate();
-            return new CompanyReturn(0, company.getName(), "", "", new String[]{"asd"}, new String[]{"das"}, jsonObject, "", "");
+            return new CompanyReturn(0, company.getName(), "", "", new String[]{""}, new String[]{""}, jsonObject, "", "");
         } catch (SQLException ex) {
             System.err.println(ex.getMessage());
         }
-        return new CompanyReturn(0, "asd", "", "", new String[]{"asd"}, new String[]{"das"}, new Object(), "", "");
+        return new CompanyReturn(0, "", "", "", new String[]{""}, new String[]{""}, new Object(), "", "");
     }
 
     @Override
@@ -261,19 +300,20 @@ public class CompanyDataAccessService implements CompanyDao {
                 foodNames = foodConvertIdtoName(food);
             }
             return new CompanyReturnFood(name, foodNames);
+
         });
     }
 
     @Override
     public List<CompanyReturn> filterByFood(CompanyFilter companyFilter) throws SQLException {
-        final String sql = "SELECT * FROM company";
+        final String sql = "SELECT * FROM company WHERE class = 'bank'";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
             String type = companyFilter.getType();
             if (type == null) {
                 type = "";
             }
-            String newSql = "SELECT * FROM company";
+            String newSql = "SELECT * FROM company WHERE class = 'bank'";
             String[] availableFoodFilter;
             String[] neededFoodFilter;
             BigDecimal[] availableFoodIds;
@@ -286,13 +326,13 @@ public class CompanyDataAccessService implements CompanyDao {
                     availableFoodFilter = companyFilter.getAvailableFood();
                     availableFoodIds = foodConvertNametoId(availableFoodFilter);
                     availableFoodIdArray = con.createArrayOf("DECIMAL", availableFoodIds);
-                    newSql = "SELECT * FROM company WHERE availablefood @> '" + availableFoodIdArray + "'";
+                    newSql = "SELECT * FROM company WHERE availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'";
                 }
                 case "neededFood" -> {
                     neededFoodFilter = companyFilter.getNeededFood();
                     neededFoodIds = foodConvertNametoId(neededFoodFilter);
                     neededFoodIdArray = con.createArrayOf("DECIMAL", neededFoodIds);
-                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "'";
+                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND class = 'bank'";
                 }
                 case "both" -> {
                     neededFoodFilter = companyFilter.getNeededFood();
@@ -301,7 +341,7 @@ public class CompanyDataAccessService implements CompanyDao {
                     availableFoodIds = foodConvertNametoId(availableFoodFilter);
                     neededFoodIdArray = con.createArrayOf("DECIMAL", neededFoodIds);
                     availableFoodIdArray = con.createArrayOf("DECIMAL", availableFoodIds);
-                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND availablefood @> '" + availableFoodIdArray + "'";
+                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'";
                 }
             }
 
@@ -409,7 +449,6 @@ public class CompanyDataAccessService implements CompanyDao {
             String base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
 
             return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded);
-            //return new CompanyReturn(DBId, name, url, phone, neededFoodNames, availableFoodNames, parsedAddress, userType);
         });
     }
 
@@ -419,7 +458,6 @@ public class CompanyDataAccessService implements CompanyDao {
         return jdbcTemplate.query(sql, (resultSet, i) -> {
             Array neededFood = resultSet.getArray("neededFood");
             String[] neededFoodNames = {};
-
             if (neededFood != null) {
                 neededFoodNames = foodConvertIdtoName(neededFood);
             }
@@ -458,6 +496,7 @@ public class CompanyDataAccessService implements CompanyDao {
             PGobject jsonObject = new PGobject();
             jsonObject.setType("jsonb");
             jsonObject.setValue(addressString);
+
             pstUpdate.setString(1, company.getName());
             pstUpdate.setObject(2, jsonObject);
             pstUpdate.setBigDecimal(3, id);
@@ -494,6 +533,7 @@ public class CompanyDataAccessService implements CompanyDao {
         } catch (SQLException ex) {
             System.err.println(ex.getMessage());
         }
+
         return 1;
     }
 
@@ -521,51 +561,6 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     @Override
-    public void sendMail(int DBId) throws SQLException, MessagingException {
-        final String sql = "SELECT * FROM company WHERE personid = ?";
-        final String newSql = "SELECT * FROM company WHERE id = ?";
-        String recipient = "";
-        String sender = "";
-        try (Connection con = DriverManager.getConnection(url, user, password);
-             PreparedStatement pst = con.prepareStatement(newSql)) {
-            pst.setInt(1, DBId);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                recipient = rs.getString("email");
-            }
-        }
-
-        Properties props = new Properties();
-        props.setProperty("mail.transport.protocol", "smtp");
-        props.setProperty("mail.host", "smtp.gmail.com");
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.port", "465");
-        props.put("mail.debug", "true");
-        props.put("mail.smtp.socketFactory.port", "465");
-        props.put("mail.smtp.socketFactory.class","javax.net.ssl.SSLSocketFactory");
-        props.put("mail.smtp.socketFactory.fallback", "false");
-        props.put("mail.smtp.starttls.enable", "true");
-        Session session = Session.getDefaultInstance(props,
-                new javax.mail.Authenticator() {
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication("","");
-                    }
-                });
-        Transport transport = session.getTransport();
-        InternetAddress addressFrom = new InternetAddress("");
-
-        MimeMessage message = new MimeMessage(session);
-        message.setSender(addressFrom);
-        message.setSubject("This is the subject");
-        message.setContent("This is the test message", "text/plain");
-        message.addRecipient(Message.RecipientType.TO, new InternetAddress(recipient));
-
-        transport.connect();
-        Transport.send(message);
-        transport.close();
-    }
-
-    @Override
     public int updateRequest(CompanyRequest companyRequest) throws SQLException, GeneralSecurityException, IOException {
         final String sql = "UPDATE requests SET status = ?, datetime = ? WHERE requestId = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
@@ -577,9 +572,46 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setString(2, dateString);
             pst.setInt(3, companyRequest.getRequestId());
             pst.executeUpdate();
+            if (companyRequest.getStatus().equals("accepted")) {
+                String[] emailInfo = emailInfo(companyRequest.getRequestId());
+                sendEmail(emailInfo, dateString);
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
         return 1;
     }
+
+    public String[] emailInfo(int requestId) throws SQLException {
+        final String sql = "SELECT * FROM requests WHERE requestid = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setInt(1, requestId);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                BigDecimal requesterId = rs.getBigDecimal("requesterId");
+                BigDecimal receiverId = rs.getBigDecimal("receiverId");
+                String[] requesterInfo = info(requesterId);
+                String[] receiverInfo = info(receiverId);
+                return new String[]{requesterInfo[0], requesterInfo[1], receiverInfo[0], receiverInfo[2]};
+            }
+            return new String[0];
+        }
+    }
+
+    public String[] info(BigDecimal id) throws SQLException {
+        final String sql = "SELECT * FROM company WHERE personid = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setBigDecimal(1, id);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next())
+                return new String[]{rs.getString("companyname"), rs.getString("email"), rs.getString("address")};
+            return new String[3];
+        }
+    }
+
+
 
     @Override
     public List<CompanyReturnRequest> getRequest(String token) throws SQLException, GeneralSecurityException, IOException {
@@ -639,12 +671,15 @@ public class CompanyDataAccessService implements CompanyDao {
         }
         File newFile = new File(path);
         FileInputStream fis = new FileInputStream(file);
+
         final String sql = "UPDATE company SET image = ?, imagetype = ? WHERE personid = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
             pst.setBinaryStream(1, fis, newFile.length());
             pst.setString(2, fullExtension);
-            pst.setBigDecimal(3, googleToken(imageEncode.getToken()));
+            pst.setBigDecimal(3, imageEncode.getId());
+            BigDecimal thing = googleToken(imageEncode.getToken());
+            //pst.setBigDecimal(3, googleToken(imageEncode.getToken()));
             pst.execute();
             fis.close();
         } catch (IOException | GeneralSecurityException e) {
@@ -652,6 +687,7 @@ public class CompanyDataAccessService implements CompanyDao {
         }
         return 0;
     }
+
 
     public String getName(BigDecimal id) throws SQLException {
         final String sql = "SELECT companyname FROM company WHERE personid = ?";
@@ -719,6 +755,7 @@ public class CompanyDataAccessService implements CompanyDao {
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
                 .setAudience(Collections.singletonList(googleKey))
                 .build();
+        System.out.println(token);
         GoogleIdToken idToken = verifier.verify(token);
         if (idToken != null) {
             GoogleIdToken.Payload payload = idToken.getPayload();
@@ -728,6 +765,47 @@ public class CompanyDataAccessService implements CompanyDao {
             return new BigDecimal("null");
         }
     }
+
+    @Override
+    public void sendEmail(String[] info, String date) throws IOException, ParseException {
+        Email from = new Email("email");
+        String subject = "Request has been approved, check timings";
+        System.out.println(info[1]);
+        Email to = new Email(info[1]);
+        JSONParser parser = new JSONParser();
+        JsonObject obj = new JsonParser().parse(info[3]).getAsJsonObject();
+        String address = String.join(", ", obj.get("Street").getAsString(), obj.get("City").getAsString(), obj.get("State").getAsString() + " " + obj.get("Zip").getAsString());
+        Content content = new Content("text/plain", "Dear " + info[0] + ", Your request to pickup food was accepted by " + info[2] +
+                ". You can pick it up at " + address + " on " + date);
+        Mail mail = new Mail(from, subject, to, content);
+
+        SendGrid sg = new SendGrid(sendGridKey);
+        Request request = new Request();
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            Response response = sg.api(request);
+            System.out.println(response.getStatusCode());
+            System.out.println(response.getBody());
+            System.out.println(response.getHeaders());
+        } catch (IOException ex) {
+            throw ex;
+        }
+    }
+
+    @Override
+    public boolean createAccount(Login login) throws SQLException {
+        final String sql = "INSERT INTO credentials (username, password) VALUES (?, ?)";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, login.getUsername());
+            pst.setString(2, login.getPassword());
+            pst.executeUpdate();
+            return true;
+        }
+    }
+
 
     public BigDecimal[] getFoodFromId(BigDecimal id) throws SQLException {
         final String sqlGet = "SELECT neededfood FROM company WHERE personid = ?";

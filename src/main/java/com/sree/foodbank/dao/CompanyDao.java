@@ -1,6 +1,7 @@
 package com.sree.foodbank.dao;
 
 import com.sree.foodbank.model.*;
+import org.json.simple.parser.ParseException;
 
 import javax.mail.MessagingException;
 import java.io.FileNotFoundException;
@@ -14,7 +15,7 @@ public interface CompanyDao {
 
     List<CompanyReturn> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException;
 
-    boolean login(Login login) throws SQLException;
+    String login(Login login) throws SQLException;
 
     List<Food> getAllFood();
 
@@ -52,8 +53,6 @@ public interface CompanyDao {
 
     int requestFood(String token, CompanyRequest companyRequest) throws SQLException, IOException, GeneralSecurityException, MessagingException;
 
-    void sendMail(int DBId) throws SQLException, MessagingException;
-
     int updateRequest(CompanyRequest companyRequest) throws SQLException, GeneralSecurityException, IOException;
 
     List<CompanyReturnRequest> getRequest (String token) throws SQLException, GeneralSecurityException, IOException;
@@ -78,6 +77,10 @@ public interface CompanyDao {
     BigDecimal foodNameToId(String foodName) throws SQLException;
 
     BigDecimal googleToken(String token) throws GeneralSecurityException, IOException;
+
+    void sendEmail(String[] Info, String date) throws IOException, ParseException;
+
+    boolean createAccount(Login login) throws SQLException;
 
     //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
 }

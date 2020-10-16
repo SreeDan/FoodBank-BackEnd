@@ -34,7 +34,7 @@ public class CompanyService {
         return companyDao.dashboard(token, companyDashboard);
     }
 
-    public boolean login(Login login) throws SQLException {
+    public String login(Login login) throws SQLException {
         return companyDao.login(login);
     }
 
@@ -102,19 +102,11 @@ public class CompanyService {
         return companyDao.addImage(imageEncode);
     }
 
-    /*public List<CompanyReturn> test(Test test) throws ParseException, SQLException {
-        return companyDao.test(test);
+    public void sendEmail() throws IOException, ParseException {
+        companyDao.sendEmail(new String[0], "");
     }
 
-     */
-
-    /*public int encodeBase(ImageEncode imageEncode) throws FileNotFoundException, SQLException {
-        return companyDao.encode(imageEncode);
+    public boolean createAccount(Login login) throws SQLException {
+        return companyDao.createAccount(login);
     }
-
-    public List<ImageEncode> getEncode(ImageEncode imageEncode) throws FileNotFoundException, SQLException {
-        return companyDao.getEncode(imageEncode);
-    }
-
-     */
 }
