@@ -80,7 +80,7 @@ public interface CompanyDao {
 
     void sendEmail(String[] Info, String date) throws IOException, ParseException;
 
-    boolean createAccount(Login login) throws SQLException;
+    boolean createAccount(CreateAccount createAccount) throws SQLException;
 
     //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
 }

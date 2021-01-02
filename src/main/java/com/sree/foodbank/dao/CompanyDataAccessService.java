@@ -18,6 +18,7 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.sree.foodbank.model.*;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.json.simple.JSONArray;
@@ -53,22 +54,32 @@ public class CompanyDataAccessService implements CompanyDao {
     String password;
     String googleKey;
     String sendGridKey;
+    String jwtSecret;
+    String email;
     {
         try {
             File postgresObj = new File("path/to/postgres/secret");
             File googleObj = new File("path/to/google/secret");
             File sendGridObj = new File("path/to/sendgrid/secret");
+            File jwtObj = new File("path/to/jwt/secret");
+            File emailObj = new File("path/to/email/secret");
             Scanner postgresReader = new Scanner(postgresObj);
             Scanner googleReader = new Scanner(googleObj);
             Scanner sendGridReader = new Scanner(sendGridObj);
+            Scanner jwtScanner = new Scanner(jwtObj);
+            Scanner emailScanner = new Scanner(emailObj);
             url = postgresReader.nextLine();
             user = postgresReader.nextLine();
             password = postgresReader.nextLine();
             googleKey = googleReader.nextLine();
             sendGridKey = sendGridReader.nextLine();
+            jwtSecret = jwtScanner.nextLine();
+            email = emailScanner.nextLine();
             postgresReader.close();
             googleReader.close();
             sendGridReader.close();
+            jwtScanner.close();
+            emailScanner.close();
         } catch (FileNotFoundException e) {
             System.out.println("An error occurred.");
             e.printStackTrace();
@@ -80,9 +91,28 @@ public class CompanyDataAccessService implements CompanyDao {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public BigDecimal decodeToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(DatatypeConverter.parseBase64Binary(jwtSecret))
+                    .parseClaimsJws(token).getBody();
+            System.out.println(claims.getSubject());
+            return new BigDecimal(claims.getSubject());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @Override
     public List<CompanyReturn> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
-        final String sql = "SELECT * FROM company WHERE personid = " + googleToken(token);
+        String sql;
+        System.out.println(googleToken(token) == null);
+        if (googleToken(token) != null) {
+            sql = "SELECT * FROM company WHERE personid = " + googleToken(token);
+        }
+        else {
+            sql = "SELECT * FROM company WHERE personid = " + decodeToken(token);
+        }
         return jdbcTemplate.query(sql, (resultSet, i) -> {
             Integer DBId = (Integer) resultSet.getObject("id");
             String name = resultSet.getString("companyname");
@@ -140,15 +170,14 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setString(2, login.getPassword());
             ResultSet rs = pst.executeQuery();
             Instant now = Instant.now();
-            byte[] secret = Base64.getDecoder().decode("decoder");
+            byte[] secret = Base64.getDecoder().decode(jwtSecret);
             String id = getId(login.getUsername(), login.getPassword()).toString();
             String jwt = Jwts.builder()
                     .setSubject(id)
-                    .setAudience("Audience")
+                    .setAudience("Food Pantry Pickup")
                     .setIssuedAt(Date.from(now))
                     .signWith(Keys.hmacShaKeyFor(secret))
                     .compact();
-            System.out.println(jwt);
             return jwt;
         }
     }
@@ -216,6 +245,12 @@ public class CompanyDataAccessService implements CompanyDao {
     @Override
     public int insertFood(BigDecimal id, String token, CompanyFood companyFood) throws GeneralSecurityException, IOException {
         token = companyFood.getToken();
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
         id = googleToken(token);
         final String sql = "UPDATE company SET neededfood = ? WHERE personid = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
@@ -472,7 +507,12 @@ public class CompanyDataAccessService implements CompanyDao {
 
     @Override
     public int deleteFood(BigDecimal id, String token) throws GeneralSecurityException, IOException {
-        id = googleToken(token);
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
         final String sql = "DELETE FROM companyfood WHERE personid = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
@@ -488,7 +528,12 @@ public class CompanyDataAccessService implements CompanyDao {
     @Override
     public int updateCompanybyId(BigDecimal id, String token, Company company) throws GeneralSecurityException, IOException {
         token = company.getToken();
-        id = googleToken(token);
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
         final String sql = "UPDATE company SET name = ?, address = ? WHERE personid = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pstUpdate = con.prepareStatement(sql)) {
@@ -509,7 +554,13 @@ public class CompanyDataAccessService implements CompanyDao {
 
     @Override
     public int updateFood(String token, CompanyFood companyFood) throws GeneralSecurityException, IOException {
-        BigDecimal id = googleToken(companyFood.getToken());
+        BigDecimal id;
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
         final String sqlUpdate = "UPDATE company SET neededfood = ? WHERE personid = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pstUpdate = con.prepareStatement(sqlUpdate)) {
@@ -543,7 +594,13 @@ public class CompanyDataAccessService implements CompanyDao {
         final String sql = "INSERT INTO requests (requesterid, receiverid, food, type, status, show) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
-            BigDecimal requesterId = googleToken(token);
+            BigDecimal requesterId;
+            if (googleToken(token) != null) {
+                requesterId = googleToken(token);
+            }
+            else {
+                requesterId = decodeToken(token);
+            }
             BigDecimal receiverId = getId(companyRequest.getReceiverId());
             BigDecimal[] foodIds = foodConvertNametoId(companyRequest.getFood());
             Array foodArray = con.createArrayOf("DECIMAL", foodIds);
@@ -615,7 +672,13 @@ public class CompanyDataAccessService implements CompanyDao {
 
     @Override
     public List<CompanyReturnRequest> getRequest(String token) throws SQLException, GeneralSecurityException, IOException {
-        BigDecimal id = googleToken(token);
+        BigDecimal id;
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
         final String sql = "SELECT requestid, requesterid, receiverid, food, datetime, type, status FROM requests WHERE requesterid = " + id + " OR receiverid = " + id;
         return jdbcTemplate.query(sql, (resultSet, i) -> {
             int requestId = resultSet.getInt("requestid");
@@ -768,7 +831,7 @@ public class CompanyDataAccessService implements CompanyDao {
 
     @Override
     public void sendEmail(String[] info, String date) throws IOException, ParseException {
-        Email from = new Email("email");
+        Email from = new Email(email);
         String subject = "Request has been approved, check timings";
         System.out.println(info[1]);
         Email to = new Email(info[1]);
@@ -786,21 +849,52 @@ public class CompanyDataAccessService implements CompanyDao {
             request.setEndpoint("mail/send");
             request.setBody(mail.build());
             Response response = sg.api(request);
-            System.out.println(response.getStatusCode());
-            System.out.println(response.getBody());
-            System.out.println(response.getHeaders());
         } catch (IOException ex) {
             throw ex;
         }
     }
 
     @Override
-    public boolean createAccount(Login login) throws SQLException {
-        final String sql = "INSERT INTO credentials (username, password) VALUES (?, ?)";
+    public boolean createAccount(CreateAccount createAccount) throws SQLException {
+        final String sql = "INSERT INTO credentials (username, password, id) VALUES (?, ?, ?)";
+        double min = 100000000000000000000.0;
+        double max = 999999999999999999999.0;
+        Random random = new Random();
+        double randomValue = min + (max - min) * random.nextDouble();
+        BigDecimal id = new BigDecimal(randomValue);
+
+
+        System.out.println("billing " + createAccount.getBilling());
+        boolean status = addCredentials(id, createAccount.getName(), createAccount);
+        if (status) {
+            try (Connection con = DriverManager.getConnection(url, user, password);
+                 PreparedStatement pst = con.prepareStatement(sql)) {
+                pst.setString(1, createAccount.getUsername());
+                pst.setString(2, createAccount.getPassword());
+                pst.setBigDecimal(3, id);
+                pst.executeUpdate();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean addCredentials(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
+        final String sql = "INSERT INTO company (personid, companyname, email, class, address) VALUES (?, ?, ?, ?, ?::JSON)";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
-            pst.setString(1, login.getUsername());
-            pst.setString(2, login.getPassword());
+            String[] address;
+            if (createAccount.getBilling() == null || createAccount.getCity() == null || createAccount.getState() == null || createAccount.getZIP() == null) {
+                address = new String[] {"{\"ZIP\": \"null\", \"City\": \"null\", \"State\": \"null\", \"Street\": \"null\"}"};
+            } else {
+                address = new String[] {"{\"ZIP\": \"" + createAccount.getZIP() + "\", \"City\": \"" + createAccount.getCity() + "\", \"State\": \"" + createAccount.getState() + "\", \"Street\": \"" + createAccount.getBilling() + "\"}"};
+            }
+            System.out.println(createAccount.getType());
+            pst.setBigDecimal(1, id);
+            pst.setString(2, name);
+            pst.setString(3, createAccount.getEmail());
+            pst.setString(4, createAccount.getType());
+            pst.setObject(5, address[0]);
             pst.executeUpdate();
             return true;
         }

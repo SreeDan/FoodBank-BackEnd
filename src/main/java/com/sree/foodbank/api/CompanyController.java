@@ -118,9 +118,8 @@ public class CompanyController {
     }
 
     @PostMapping(path = "/dashboard")
-    public List<CompanyReturn> dashboard(@CookieValue("token") String gtoken, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
-        //g
-        return companyService.dashboard(gtoken, companyDashboard);
+    public List<CompanyReturn> dashboard(@CookieValue("token") String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
+        return companyService.dashboard(token, companyDashboard);
     }
 
     @PostMapping(path = "/readauthenticate")
@@ -131,9 +130,9 @@ public class CompanyController {
     }
 
     @PostMapping(path = "/login")
-    public boolean login(@RequestBody Login login, HttpServletRequest request, HttpServletResponse response, TimeZone timeZone) throws SQLException {
+    public boolean login(@RequestBody Login login, HttpServletResponse response, TimeZone timeZone) throws SQLException {
         String token = companyService.login(login);
-        Cookie cookie = new Cookie("token", null);
+        Cookie cookie = new Cookie("token", token);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
         response.addCookie(cookie);
@@ -243,8 +242,8 @@ public class CompanyController {
     }
 
     @PostMapping(path = "/create")
-    public boolean createAccount(@Valid @NonNull @RequestBody Login login) throws SQLException {
-        return companyService.createAccount(login);
+    public boolean createAccount(@Valid @NonNull @RequestBody CreateAccount createAccount) throws SQLException {
+        return companyService.createAccount(createAccount);
     }
 
 

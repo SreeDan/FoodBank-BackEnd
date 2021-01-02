@@ -106,7 +106,7 @@ public class CompanyService {
         companyDao.sendEmail(new String[0], "");
     }
 
-    public boolean createAccount(Login login) throws SQLException {
-        return companyDao.createAccount(login);
+    public boolean createAccount(CreateAccount createAccount) throws SQLException {
+        return companyDao.createAccount(createAccount);
     }
 }
