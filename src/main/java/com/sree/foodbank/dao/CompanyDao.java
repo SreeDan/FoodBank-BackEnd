@@ -82,5 +82,7 @@ public interface CompanyDao {
 
     boolean createAccount(CreateAccount createAccount) throws SQLException;
 
+    CompanyReturn locationFiltering(Location location);
+
     //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
 }

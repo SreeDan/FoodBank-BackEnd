@@ -10,7 +10,9 @@ CREATE TABLE company (
     AvailableFood DECIMAL(65, 0) ARRAY,
     Class VARCHAR(10),
     Image BYTEA,
-    ImageType VARCHAR(100)
+    ImageType VARCHAR(100),
+    Lat DECIMAL (10, 30),
+    Long DECIMAL (10, 30)
 );
 CREATE TABLE food (
     FoodId DECIMAL(65, 0) PRIMARY KEY NOT NULL,

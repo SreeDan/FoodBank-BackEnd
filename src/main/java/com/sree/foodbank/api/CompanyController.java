@@ -246,5 +246,9 @@ public class CompanyController {
         return companyService.createAccount(createAccount);
     }
 
+    @PostMapping(path="/location")
+    public CompanyReturn locationFiltering(Location location) {
+        return companyService.locationFiltering(location);
+    }
 
 }

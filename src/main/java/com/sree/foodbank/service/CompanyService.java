@@ -109,4 +109,8 @@ public class CompanyService {
     public boolean createAccount(CreateAccount createAccount) throws SQLException {
         return companyDao.createAccount(createAccount);
     }
+
+    public CompanyReturn locationFiltering(Location location) {
+        return companyDao.locationFiltering(location);
+    }
 }

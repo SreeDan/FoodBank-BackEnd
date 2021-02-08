@@ -17,6 +17,7 @@ import com.sendgrid.SendGrid;
 import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
+import com.sree.foodbank.exception.ApiRequestException;
 import com.sree.foodbank.model.*;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -37,6 +38,10 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.math.BigDecimal;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.GeneralSecurityException;
 import java.sql.*;
 import java.time.Instant;
@@ -53,6 +58,7 @@ public class CompanyDataAccessService implements CompanyDao {
     String user;
     String password;
     String googleKey;
+    String googleGeocodeKey;
     String sendGridKey;
     String jwtSecret;
     String email;
@@ -72,6 +78,7 @@ public class CompanyDataAccessService implements CompanyDao {
             user = postgresReader.nextLine();
             password = postgresReader.nextLine();
             googleKey = googleReader.nextLine();
+            googleGeocodeKey = googleReader.nextLine();
             sendGridKey = sendGridReader.nextLine();
             jwtSecret = jwtScanner.nextLine();
             email = emailScanner.nextLine();
@@ -879,15 +886,27 @@ public class CompanyDataAccessService implements CompanyDao {
         return false;
     }
 
+    @Override
+    public CompanyReturn locationFiltering(Location location) {
+        return null;
+    }
+
     public boolean addCredentials(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
         final String sql = "INSERT INTO company (personid, companyname, email, class, address) VALUES (?, ?, ?, ?, ?::JSON)";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
+
+            String billing = createAccount.getBilling();
+            String city = createAccount.getCity();
+            String state = createAccount.getState();
+            String ZIP = createAccount.getZIP();
+            double[] latLng = getLatLng(billing, city, state, ZIP);
+
             String[] address;
             if (createAccount.getBilling() == null || createAccount.getCity() == null || createAccount.getState() == null || createAccount.getZIP() == null) {
                 address = new String[] {"{\"ZIP\": \"null\", \"City\": \"null\", \"State\": \"null\", \"Street\": \"null\"}"};
             } else {
-                address = new String[] {"{\"ZIP\": \"" + createAccount.getZIP() + "\", \"City\": \"" + createAccount.getCity() + "\", \"State\": \"" + createAccount.getState() + "\", \"Street\": \"" + createAccount.getBilling() + "\"}"};
+                address = new String[] {"{\"ZIP\": \"" + ZIP + "\", \"City\": \"" + city + "\", \"State\": \"" + state + "\", \"Street\": \"" + billing + "\"}"};
             }
             System.out.println(createAccount.getType());
             pst.setBigDecimal(1, id);
@@ -897,9 +916,45 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setObject(5, address[0]);
             pst.executeUpdate();
             return true;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return true;
     }
 
+    public double[] getLatLng(String billing, String city, String state, String ZIP) throws IOException, InterruptedException {
+        billing = billing.replace(' ', '+');
+        city = city.replace(' ', '+');
+        final String POSTS_API_URL = "https://maps.googleapis.com/maps/api/geocode/json?address=" + billing + ",+" + city + ",+" + state + "&key=" + googleGeocodeKey;
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .GET()
+                .header("accept", "application/json")
+                .uri(URI.create(POSTS_API_URL))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        String s = response.body();
+        org.json.JSONObject obj = new org.json.JSONObject(s);
+        try {
+            if (obj.getString("status").equals("ZERO_RESULTS")) {
+                throw new ApiRequestException("Invalid Address");
+            }
+            org.json.JSONObject res = obj.getJSONArray("results").getJSONObject(0);
+            org.json.JSONObject loc = res.getJSONObject("geometry").getJSONObject("location");
+            try {
+                if (res.getBoolean("partial_match")) {
+                    throw new ApiRequestException("Invalid Address");
+                }
+            } catch (Exception e) {
+                return new double[]{loc.getDouble("lat"), loc.getDouble("lng")};
+            }
+            return null;
+        } catch (Exception e) {
+            throw new ApiRequestException("API Error");
+        }
+    }
 
     public BigDecimal[] getFoodFromId(BigDecimal id) throws SQLException {
         final String sqlGet = "SELECT neededfood FROM company WHERE personid = ?";
