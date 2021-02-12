@@ -226,13 +226,13 @@ public class CompanyController {
         companyService.deleteFood(id, token);
     }
 
-    @PutMapping
-    public void updateCompany(BigDecimal id, @Valid @NonNull String token,  @Valid @NonNull @RequestBody Company companyUpdate) throws GeneralSecurityException, IOException, SQLException {
-        companyService.updateCompany(id, token, companyUpdate);
+    @PutMapping(path = "/")
+    public void updateCompany(@CookieValue(name = "token") String token, @Valid @NonNull @RequestBody CompanyInfo companyUpdate) throws GeneralSecurityException, IOException, SQLException, InterruptedException {
+        companyService.updateCompany(token, companyUpdate);
     }
 
     @PutMapping(path = "/food")
-    public void updateFood(@Valid @NonNull String token, @Valid @NonNull @RequestBody CompanyFood foodUpdate) throws GeneralSecurityException, IOException, SQLException {
+    public void updateFood(@CookieValue(name = "token") String token, @Valid @NonNull @RequestBody List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException {
         companyService.updateFood(token, foodUpdate);
     }
 

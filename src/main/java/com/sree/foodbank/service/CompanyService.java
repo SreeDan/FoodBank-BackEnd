@@ -74,12 +74,12 @@ public class CompanyService {
         return companyDao.deleteCompanybyId(id);
     }
 
-    public int updateCompany(BigDecimal id, String token, Company newCompany) throws GeneralSecurityException, IOException, SQLException {
-        return companyDao.updateCompanybyId(id, token, newCompany);
+    public int updateCompany(String token, CompanyInfo companyUpdate) throws GeneralSecurityException, IOException, SQLException, InterruptedException {
+        return companyDao.updateCompanybyId(token, companyUpdate);
     }
 
-    public int updateFood(String token, CompanyFood newFood) throws GeneralSecurityException, IOException, SQLException {
-        return companyDao.updateFood(token, newFood);
+    public int updateFood(String token, List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException {
+        return companyDao.updateFood(token, foodUpdate);
     }
 
     public int deleteFood(BigDecimal id, String token) throws GeneralSecurityException, IOException {

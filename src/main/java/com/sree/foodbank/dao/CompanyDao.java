@@ -47,9 +47,9 @@ public interface CompanyDao {
 
     int deleteFood(BigDecimal id, String token) throws GeneralSecurityException, IOException;
 
-    int updateCompanybyId(BigDecimal id, String token, Company company) throws GeneralSecurityException, IOException, SQLException;
+    int updateCompanybyId(String token, CompanyInfo companyInfo) throws GeneralSecurityException, IOException, SQLException, InterruptedException;
 
-    int updateFood(String token, CompanyFood companyFood) throws GeneralSecurityException, IOException, SQLException;
+    int updateFood(String token, List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException;
 
     int requestFood(String token, CompanyRequest companyRequest) throws SQLException, IOException, GeneralSecurityException, MessagingException;
 

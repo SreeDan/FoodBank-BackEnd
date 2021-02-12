@@ -533,34 +533,7 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     @Override
-    public int updateCompanybyId(BigDecimal id, String token, Company company) throws GeneralSecurityException, IOException {
-        token = company.getToken();
-        if (googleToken(token) != null) {
-            id = googleToken(token);
-        }
-        else {
-            id = decodeToken(token);
-        }
-        final String sql = "UPDATE company SET name = ?, address = ? WHERE personid = ?";
-        try (Connection con = DriverManager.getConnection(url, user, password);
-             PreparedStatement pstUpdate = con.prepareStatement(sql)) {
-            String addressString = String.valueOf(company.getAddress());
-            PGobject jsonObject = new PGobject();
-            jsonObject.setType("jsonb");
-            jsonObject.setValue(addressString);
-
-            pstUpdate.setString(1, company.getName());
-            pstUpdate.setObject(2, jsonObject);
-            pstUpdate.setBigDecimal(3, id);
-            pstUpdate.executeUpdate();
-        } catch (SQLException ex) {
-            System.err.println(ex.getMessage());
-        }
-        return 0;
-    }
-
-    @Override
-    public int updateFood(String token, CompanyFood companyFood) throws GeneralSecurityException, IOException {
+    public int updateCompanybyId(String token, CompanyInfo companyUpdate) throws GeneralSecurityException, IOException, InterruptedException {
         BigDecimal id;
         if (googleToken(token) != null) {
             id = googleToken(token);
@@ -568,30 +541,116 @@ public class CompanyDataAccessService implements CompanyDao {
         else {
             id = decodeToken(token);
         }
-        final String sqlUpdate = "UPDATE company SET neededfood = ? WHERE personid = ?";
-        try (Connection con = DriverManager.getConnection(url, user, password);
-             PreparedStatement pstUpdate = con.prepareStatement(sqlUpdate)) {
-            String[] foodNames = companyFood.getNeededFood();
-            BigDecimal[] foodIds = new BigDecimal[foodNames.length];
-            for (int x = 0; x < foodNames.length; x++) {
-                BigDecimal temp = foodNameToId(foodNames[x]);
-                foodIds[x] = temp;
+
+        final String sql = "UPDATE company SET (address = ?::JSON, url = ?, email = ?, phone = ?, image = ?, imagetype = ?) WHERE personid = ?";
+        String user = companyUpdate.getUser();
+        String pass = companyUpdate.getPassword();
+        String billing = companyUpdate.getBilling();
+        String city = companyUpdate.getCity();
+        String state = companyUpdate.getState();
+        String ZIP = companyUpdate.getZIP();
+        double[] latLng = getLatLng(billing, city, state, ZIP);
+        String url = companyUpdate.getUrl();
+        String phone = companyUpdate.getPhone();
+        String email = companyUpdate.getEmail();
+        String image = companyUpdate.getImage();
+
+
+        String[] address;
+        if (billing == null || city == null || state == null || state == null) {
+            address = new String[] {"{\"ZIP\": \"null\", \"City\": \"null\", \"State\": \"null\", \"Street\": \"null\"}"};
+        } else {
+            address = new String[] {"{\"ZIP\": \"" + ZIP + "\", \"City\": \"" + city + "\", \"State\": \"" + state + "\", \"Street\": \"" + billing + "\"}"};
+        }
+        if (image.isEmpty()) {
+            updateWithoutImage(user, pass, address, url, email, phone, id);
+            return 1;
+        }
+
+        String[] strings = image.split(",");
+        String extension;
+        String fullExtension;
+        switch (strings[0]) {
+            case "data:image/jpeg;base64" -> {
+                extension = "jpeg";
+                fullExtension = "data:image/jpeg;base64,";
             }
-            BigDecimal[] addFood = getFoodFromId(id);
-            BigDecimal[] newFood = new BigDecimal[foodIds.length + addFood.length];
+            case "data:image/png;base64" -> {
+                extension = "png";
+                fullExtension = "data:image/png;base64,";
+            }
+            default -> {
+                extension = "jpg";
+                fullExtension = "data:image/jpg;base64,";
+            }
+        }
+        byte[] data = DatatypeConverter.parseBase64Binary(strings[1]);
+        String path = "/path/to/image/folder/test_image." + extension;
+        File file = new File(path);
+        try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file))) {
+            outputStream.write(data);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        File newFile = new File(path);
+        FileInputStream fis = new FileInputStream(file);
 
-            System.arraycopy(foodIds, 0, newFood, 0, foodIds.length);
-            System.arraycopy(addFood, 0, newFood, foodIds.length, addFood.length);
-
-            Array food = con.createArrayOf("DECIMAL", newFood);
-            pstUpdate.setArray(1, food);
-            pstUpdate.setBigDecimal(2, id);
-            pstUpdate.executeUpdate();
-
+        updateUserPass(user, pass, id);
+        try (Connection con = DriverManager.getConnection(this.url, this.user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            Array availableFoodArray = con.createArrayOf("DECIMAL", new BigDecimal[] {});
+            pst.setObject(1, address[0]);
+            pst.setString(2, url);
+            pst.setString(3, email);
+            pst.setString(4, phone);
+            pst.setBinaryStream(5, fis, newFile.length());
+            pst.setString(6, fullExtension);
+            pst.setBigDecimal(7, id);
+            pst.executeUpdate();
         } catch (SQLException ex) {
             System.err.println(ex.getMessage());
         }
+        return 0;
+    }
 
+    public void updateWithoutImage(String user, String pass, String[] address, String url, String email, String phone, BigDecimal id) {
+        String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ? WHERE personid = ?";
+        updateUserPass(user, pass, id);
+        try (Connection con = DriverManager.getConnection(this.url, this.user, this.password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setObject(1, address[0]);
+            pst.setString(2, url);
+            pst.setString(3, email);
+            pst.setString(4, phone);
+            pst.setBigDecimal(5, id);
+            pst.executeUpdate();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+    }
+
+    @Override
+    public int updateFood(String token, List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException {
+        BigDecimal id;
+        if (googleToken(token) != null) {
+            id = googleToken(token);
+        }
+        else {
+            id = decodeToken(token);
+        }
+
+        BigDecimal[] updatedFood = new BigDecimal[foodUpdate.size()];
+        for (int x = 0; x < foodUpdate.size(); x++) {
+            updatedFood[x] = foodUpdate.get(x).getId();
+        }
+        final String sql = "UPDATE company SET availablefood = ? WHERE personid = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            Array food = con.createArrayOf("DECIMAL", updatedFood);
+            pst.setArray(1, food);
+            pst.setBigDecimal(2, id);
+            pst.executeUpdate();
+        }
         return 1;
     }
 
@@ -1009,6 +1068,19 @@ public class CompanyDataAccessService implements CompanyDao {
         String newThing = "";
         newThing += "[" + tempString.substring(2) + "]";
         return newThing;
+    }
+
+    public void updateUserPass(String user, String password, BigDecimal id)  {
+        final String sql = "UPDATE credentials SET username = ?, password = ? WHERE id = ?";
+        try (Connection con = DriverManager.getConnection(url, this.user, this.password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, user);
+            pst.setString(2, password);
+            pst.setBigDecimal(3, id);
+            pst.executeUpdate();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
     }
 
     final RateLimiter rateLimiter = RateLimiter.create(10.0);
