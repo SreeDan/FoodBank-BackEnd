@@ -542,14 +542,22 @@ public class CompanyDataAccessService implements CompanyDao {
             id = decodeToken(token);
         }
 
-        final String sql = "UPDATE company SET (address = ?::JSON, url = ?, email = ?, phone = ?, image = ?, imagetype = ?) WHERE personid = ?";
+        final String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ?, image = ?, imagetype = ? WHERE personid = ?";
         String user = companyUpdate.getUser();
         String pass = companyUpdate.getPassword();
         String billing = companyUpdate.getBilling();
         String city = companyUpdate.getCity();
         String state = companyUpdate.getState();
         String ZIP = companyUpdate.getZIP();
-        double[] latLng = getLatLng(billing, city, state, ZIP);
+
+        Double[] latLng = getLatLng(billing, city, state, ZIP);
+        if (latLng[0] == null) {
+            if (latLng[2] == null) {
+                throw new ApiRequestException("Error Validating Your Address - Please Try Again Later");
+            }
+            throw new ApiRequestException("Invalid Address");
+        }
+
         String url = companyUpdate.getUrl();
         String phone = companyUpdate.getPhone();
         String email = companyUpdate.getEmail();
@@ -959,7 +967,15 @@ public class CompanyDataAccessService implements CompanyDao {
             String city = createAccount.getCity();
             String state = createAccount.getState();
             String ZIP = createAccount.getZIP();
-            double[] latLng = getLatLng(billing, city, state, ZIP);
+
+            Double[] latLng = getLatLng(billing, city, state, ZIP);
+            if (latLng[0] == null) {
+                if (latLng[2] == null) {
+                    throw new ApiRequestException("Error Validating Your Address - Please Try Again Later");
+                }
+                throw new ApiRequestException("Invalid Address");
+            }
+
 
             String[] address;
             if (createAccount.getBilling() == null || createAccount.getCity() == null || createAccount.getState() == null || createAccount.getZIP() == null) {
@@ -983,7 +999,7 @@ public class CompanyDataAccessService implements CompanyDao {
         return true;
     }
 
-    public double[] getLatLng(String billing, String city, String state, String ZIP) throws IOException, InterruptedException {
+    public Double[] getLatLng(String billing, String city, String state, String ZIP) throws IOException, InterruptedException {
         billing = billing.replace(' ', '+');
         city = city.replace(' ', '+');
         final String POSTS_API_URL = "https://maps.googleapis.com/maps/api/geocode/json?address=" + billing + ",+" + city + ",+" + state + "&key=" + googleGeocodeKey;
@@ -996,23 +1012,39 @@ public class CompanyDataAccessService implements CompanyDao {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         String s = response.body();
         org.json.JSONObject obj = new org.json.JSONObject(s);
+
+        Double[] values = new Double[3];
         try {
             if (obj.getString("status").equals("ZERO_RESULTS")) {
-                throw new ApiRequestException("Invalid Address");
+                System.out.println("oof 1");
+                values[0] = null;
+                values[1] = null;
+                values[2] = 0.0;
+                return values;
+                //throw new ApiRequestException("Invalid Address");
             }
-            org.json.JSONObject res = obj.getJSONArray("results").getJSONObject(0);
-            org.json.JSONObject loc = res.getJSONObject("geometry").getJSONObject("location");
-            try {
-                if (res.getBoolean("partial_match")) {
-                    throw new ApiRequestException("Invalid Address");
-                }
-            } catch (Exception e) {
-                return new double[]{loc.getDouble("lat"), loc.getDouble("lng")};
+        } catch (Exception e) {}
+        org.json.JSONObject res = obj.getJSONArray("results").getJSONObject(0);
+        org.json.JSONObject loc = res.getJSONObject("geometry").getJSONObject("location");
+        try {
+            if (res.getBoolean("partial_match")) {
+                values[0] = null;
+                values[1] = null;
+                values[2] = 0.0;
+                System.out.println("oof 2");
+                return values;
             }
-            return null;
         } catch (Exception e) {
-            throw new ApiRequestException("API Error");
+            if (res.length() != 0) {
+                values[0] = loc.getDouble("lat");
+                values[1] = loc.getDouble("lng");
+                return values;
+            }
         }
+        values[0] = null;
+        values[1] = null;
+        values[2] = null;
+        return values;
     }
 
     public BigDecimal[] getFoodFromId(BigDecimal id) throws SQLException {
