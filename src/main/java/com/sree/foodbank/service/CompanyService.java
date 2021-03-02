@@ -30,7 +30,7 @@ public class CompanyService {
         this.companyDao = companyDao;
     }
 
-    public List<CompanyReturn> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
+    public List<CompanyInfo> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
         return companyDao.dashboard(token, companyDashboard);
     }
 
@@ -62,8 +62,8 @@ public class CompanyService {
         return companyDao.selectCompanyFood();
     }
 
-    public List<CompanyReturn> getCompanybyId(BigDecimal id) {
-        return companyDao.selectCompanyById(id);
+    public List<CompanyReturn> getCompanybyId(BigDecimal id, Double distance) {
+        return companyDao.selectCompanyById(id, distance);
     }
 
     public List<CompanyNeededFood> getCompanyNeededFoodById(BigDecimal id) {
@@ -110,7 +110,7 @@ public class CompanyService {
         return companyDao.createAccount(createAccount);
     }
 
-    public CompanyReturn locationFiltering(Location location) {
+    public List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException {
         return companyDao.locationFiltering(location);
     }
 }

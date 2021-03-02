@@ -118,7 +118,7 @@ public class CompanyController {
     }
 
     @PostMapping(path = "/dashboard")
-    public List<CompanyReturn> dashboard(@CookieValue("token") String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
+    public List<CompanyInfo> dashboard(@CookieValue("token") String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
         return companyService.dashboard(token, companyDashboard);
     }
 
@@ -196,7 +196,7 @@ public class CompanyController {
 
     @GetMapping(path = "{id}")
     public List<CompanyReturn> getCompanyById(@PathVariable("id") BigDecimal id) {
-        return companyService.getCompanybyId(id);
+        return companyService.getCompanybyId(id, 0.0);
     }
 
     @GetMapping(path = "{id}/needed")
@@ -247,7 +247,7 @@ public class CompanyController {
     }
 
     @PostMapping(path="/location")
-    public CompanyReturn locationFiltering(Location location) {
+    public List<CompanyReturn> locationFiltering(@Valid @NonNull @RequestBody Location location) throws SQLException, IOException, InterruptedException {
         return companyService.locationFiltering(location);
     }
 

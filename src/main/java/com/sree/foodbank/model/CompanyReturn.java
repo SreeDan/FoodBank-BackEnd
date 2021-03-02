@@ -15,6 +15,10 @@ public class CompanyReturn {
     private final Object address;
     private final String userType;
     private final String image;
+    private final String email;
+    private final Double distance;
+    private final Double lat;
+    private final Double lng;
 
     public CompanyReturn(@JsonProperty("id") Integer id,
                          @JsonProperty("name") String name,
@@ -24,7 +28,11 @@ public class CompanyReturn {
                          @JsonProperty("availableFood") Object availableFood,
                          @JsonProperty("address") Object address,
                          @JsonProperty("userType") String userType,
-                         @JsonProperty("image") String image) {
+                         @JsonProperty("image") String image,
+                         @JsonProperty("email") String email,
+                         @JsonProperty("distance") Double distance,
+                         @JsonProperty("lat") Double lat,
+                         @JsonProperty("lng") Double lng) {
         this.id = id;
         this.name = name;
         this.url = url;
@@ -34,6 +42,10 @@ public class CompanyReturn {
         this.address = address;
         this.userType = userType;
         this.image = image;
+        this.email = email;
+        this.distance = distance;
+        this.lat = lat;
+        this.lng = lng;
     }
 
     public Integer getId() {
@@ -70,5 +82,21 @@ public class CompanyReturn {
 
     public String getImage() {
         return image;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public Double getDistance() {
+        return distance;
+    }
+
+    public Double getLat() {
+        return lat;
+    }
+
+    public Double getLng() {
+        return lng;
     }
 }

@@ -30,6 +30,7 @@ import org.springframework.stereotype.Repository;
 
 import org.json.simple.parser.*;
 import org.json.simple.JSONObject;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
@@ -39,6 +40,7 @@ import java.io.*;
 import java.math.BigDecimal;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -111,14 +113,16 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     @Override
-    public List<CompanyReturn> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
+    public List<CompanyInfo> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
         String sql;
-        System.out.println(googleToken(token) == null);
+        BigDecimal id;
         if (googleToken(token) != null) {
             sql = "SELECT * FROM company WHERE personid = " + googleToken(token);
+            id = googleToken(token);
         }
         else {
             sql = "SELECT * FROM company WHERE personid = " + decodeToken(token);
+            id = decodeToken(token);
         }
         return jdbcTemplate.query(sql, (resultSet, i) -> {
             Integer DBId = (Integer) resultSet.getObject("id");
@@ -164,8 +168,26 @@ public class CompanyDataAccessService implements CompanyDao {
             if (imgBytes != null) {
                 base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
             }
-            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded);
+            System.out.println(name + " " + url + " " + neededFoodParsed);
+            String email = resultSet.getString("email");
+            String[] creds = getUserAndDash(id);
+            System.out.println("checkpoint");
+            return new CompanyInfo(DBId, creds[0], creds[1], name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, "", "", "", "", userType, base64Encoded, email, 0.0, 0.0);
         });
+    }
+
+    public String[] getUserAndDash(BigDecimal id) throws SQLException {
+        final String sql = "SELECT * FROM credentials WHERE id = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setBigDecimal(1, id);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                System.out.println(rs.getString("username"));
+                return new String[]{rs.getString("username"), rs.getString("password")};
+            }
+            return new String[] {"", ""};
+        }
     }
 
     @Override
@@ -242,11 +264,11 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setObject(4, jsonObject);
             pst.setString(5, company.getUserType());
             pst.executeUpdate();
-            return new CompanyReturn(0, company.getName(), "", "", new String[]{""}, new String[]{""}, jsonObject, "", "");
+            return new CompanyReturn(0, company.getName(), "", "", new String[]{"asd"}, new String[]{"das"}, jsonObject, "", "", "", 0.0, 0.0, 0.0);
         } catch (SQLException ex) {
             System.err.println(ex.getMessage());
         }
-        return new CompanyReturn(0, "", "", "", new String[]{""}, new String[]{""}, new Object(), "", "");
+        return new CompanyReturn(0, "asd", "", "", new String[]{"asd"}, new String[]{"das"}, new Object(), "", "", "", 0.0, 0.0, 0.0);
     }
 
     @Override
@@ -324,7 +346,8 @@ public class CompanyDataAccessService implements CompanyDao {
             if (imgBytes != null) {
                 base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
             }
-            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded);
+            String email = resultSet.getString("email");
+            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded, email, 0.0, 0.0, 0.0);
             //return new CompanyReturn(DBId, name, url, phone, neededFoodNames, availableFoodNames, parsedAddress, userType);
         });
     }
@@ -431,7 +454,8 @@ public class CompanyDataAccessService implements CompanyDao {
                 if (imgBytes != null) {
                     base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
                 }
-                return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded);
+                String email = resultSet.getString("email");
+                return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded, email, 0.0, 0.0, 0.0);
                 //return new CompanyReturn(DBId, name, url, phone, neededFoodNames, availableFoodNames, parsedAddress, userType);
             });
 
@@ -440,7 +464,7 @@ public class CompanyDataAccessService implements CompanyDao {
 
 
     @Override
-    public List<CompanyReturn> selectCompanyById(BigDecimal id) {
+    public List<CompanyReturn> selectCompanyById(BigDecimal id, Double distance) {
         //final String sql = "SELECT id, companyname, neededfood, availablefood, address, class, image, imagetype FROM company WHERE id = " + id;
         final String sql = "SELECT * FROM company WHERE id = " + id;
         return jdbcTemplate.query(sql, (resultSet, i) -> {
@@ -488,9 +512,11 @@ public class CompanyDataAccessService implements CompanyDao {
                 imgBytes = resultSet.getBytes("image");
                 imageType = resultSet.getString("imagetype");
             }
+            String email = resultSet.getString("email");
+
             String base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
 
-            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded);
+            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded, email, distance,  0.0, 0.0);
         });
     }
 
@@ -542,7 +568,7 @@ public class CompanyDataAccessService implements CompanyDao {
             id = decodeToken(token);
         }
 
-        final String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ?, image = ?, imagetype = ? WHERE personid = ?";
+        final String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ?, image = ?, imagetype = ?, lat = ?, long = ?, place_id = ? WHERE personid = ?";
         String user = companyUpdate.getUser();
         String pass = companyUpdate.getPassword();
         String billing = companyUpdate.getBilling();
@@ -550,9 +576,9 @@ public class CompanyDataAccessService implements CompanyDao {
         String state = companyUpdate.getState();
         String ZIP = companyUpdate.getZIP();
 
-        Double[] latLng = getLatLng(billing, city, state, ZIP);
+        String[] latLng = getLatLng(billing, city, state, ZIP);
         if (latLng[0] == null) {
-            if (latLng[2] == null) {
+            if (latLng[3] == null) {
                 throw new ApiRequestException("Error Validating Your Address - Please Try Again Later");
             }
             throw new ApiRequestException("Invalid Address");
@@ -571,7 +597,7 @@ public class CompanyDataAccessService implements CompanyDao {
             address = new String[] {"{\"ZIP\": \"" + ZIP + "\", \"City\": \"" + city + "\", \"State\": \"" + state + "\", \"Street\": \"" + billing + "\"}"};
         }
         if (image.isEmpty()) {
-            updateWithoutImage(user, pass, address, url, email, phone, id);
+            updateWithoutImage(user, pass, address, url, email, phone, latLng[0], latLng[1], latLng[2], id);
             return 1;
         }
 
@@ -613,7 +639,10 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setString(4, phone);
             pst.setBinaryStream(5, fis, newFile.length());
             pst.setString(6, fullExtension);
-            pst.setBigDecimal(7, id);
+            pst.setString(7, latLng[0]);
+            pst.setString(8, latLng[1]);
+            pst.setString(9, latLng[2]);
+            pst.setBigDecimal(10, id);
             pst.executeUpdate();
         } catch (SQLException ex) {
             System.err.println(ex.getMessage());
@@ -621,8 +650,8 @@ public class CompanyDataAccessService implements CompanyDao {
         return 0;
     }
 
-    public void updateWithoutImage(String user, String pass, String[] address, String url, String email, String phone, BigDecimal id) {
-        String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ? WHERE personid = ?";
+    public void updateWithoutImage(String user, String pass, String[] address, String url, String email, String phone, String lat, String lng, String place_id, BigDecimal id) {
+        String sql = "UPDATE company SET address = ?::JSON, url = ?, email = ?, phone = ?, lat = ?, long = ?, place_id = ? WHERE personid = ?";
         updateUserPass(user, pass, id);
         try (Connection con = DriverManager.getConnection(this.url, this.user, this.password);
              PreparedStatement pst = con.prepareStatement(sql)) {
@@ -630,7 +659,10 @@ public class CompanyDataAccessService implements CompanyDao {
             pst.setString(2, url);
             pst.setString(3, email);
             pst.setString(4, phone);
-            pst.setBigDecimal(5, id);
+            pst.setString(5, lat);
+            pst.setString(6, lng);
+            pst.setString(7, place_id);
+            pst.setBigDecimal(8, id);
             pst.executeUpdate();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
@@ -954,8 +986,156 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     @Override
-    public CompanyReturn locationFiltering(Location location) {
-        return null;
+    public List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException {
+        String sql = "SELECT * FROM company WHERE class = 'bank' AND address ->> 'State' = ?";
+        ArrayList<Integer> ids = new ArrayList<Integer>();
+        ArrayList<String> place_ids = new ArrayList<String>();
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, location.getState());
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                ids.add(rs.getInt("id"));
+                place_ids.add(rs.getString("place_id"));
+            }
+        }
+        int placeholder = 0;
+        String[][] place_ids_array = new String[1 + (place_ids.size() / 25)][25];
+        int[][] ids_2d = new int[1 + (ids.size() / 25)][25];
+        for (int rows = 0; rows < place_ids_array.length; rows++) {
+            for (int cols = 0; cols < place_ids_array[rows].length; cols++) {
+                if (placeholder < place_ids.size()) {
+                    place_ids_array[rows][cols] = place_ids.get(placeholder);
+                    ids_2d[rows][cols] = ids.get(placeholder);
+                    placeholder++;
+                }
+            }
+        }
+
+        Double[][] distance = new Double[1 + (place_ids.size() / 25)][25];
+        int num_distances = 0;
+        System.out.println(Arrays.toString(place_ids_array[0]));
+        //Creating 2d array of 25 locations each beacuse you can only send 25 locations at once to the Google API
+        for (int rows = 0; rows < distance.length; rows++) {
+            String origin = location.getLat().toString() + "," + location.getLng().toString();
+            StringBuilder destinations = new StringBuilder();
+            for (int cols = 0; cols < distance[rows].length; cols++) {
+                String place_id = place_ids_array[rows][cols];
+                if (place_id != null) {
+                    destinations.append("place_id:").append(place_id).append("|");
+                }
+            }
+            final String POSTS_API_URL = "https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial" + origin + destinations.substring(0, destinations.length() - 3) + "&key=" + URLEncoder.encode(googleGeocodeKey, "UTF-8");
+
+            String url = UriComponentsBuilder
+                    .fromHttpUrl("https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial")
+                    .queryParam("origins", origin)
+                    .queryParam("destinations", destinations)
+                    .queryParam("key", googleGeocodeKey)
+                    .build()
+                    .encode()
+                    .toUriString();
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .header("accept", "application/json")
+                    .uri(URI.create(url))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            try {
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException e) {
+                throw new ApiRequestException("Can't use this service at the moment");
+            } catch (InterruptedException e) {
+                throw new ApiRequestException("Can't use this service at the moment");
+            }
+            String body = response.body();
+            org.json.JSONObject obj = new org.json.JSONObject(body);
+            org.json.JSONArray res = obj.getJSONArray("rows").getJSONObject(0).getJSONArray("elements");
+
+            for (int cols = 0; cols < distance[rows].length; cols++) {
+                if (place_ids_array[rows][cols] != null) {
+                    String distanceText = res.getJSONObject(cols).getJSONObject("distance").getString("text");
+                    distanceText = distanceText.replace(",", "");
+                    distance[rows][cols] = Double.valueOf(distanceText.substring(0, distanceText.indexOf(" ")));
+                    num_distances++;
+                }
+            }
+        }
+
+        Distance[] single_distances = new Distance[num_distances];
+        placeholder = 0;
+        outerloop:
+        for (int rows = 0; rows < distance.length; rows++) {
+            for (int cols = 0; cols < distance[rows].length; cols++) {
+                single_distances[placeholder] = new Distance(ids_2d[rows][cols], distance[rows][cols]);
+                placeholder++;
+                if (placeholder == num_distances) {
+                    break outerloop;
+                }
+            }
+        }
+        Distance[] sorted = mergeSort(single_distances);
+        ArrayList<CompanyReturn> companyReturns = new ArrayList<CompanyReturn>();
+        List<CompanyReturn> companyReturnList = new ArrayList<CompanyReturn>();
+        for (Distance d: sorted) {
+            companyReturnList.add(selectCompanyById(BigDecimal.valueOf(d.getId()), d.getDistance()).get(0));
+        }
+
+        return companyReturnList;
+    }
+
+    public Distance[] mergeSort(Distance[] array) {
+        if(array.length <= 1) {
+            return array;
+        }
+
+        int midpoint = array.length / 2;
+        Distance[] left = new Distance[midpoint];
+        Distance[] right;
+        if(array.length % 2 == 0) {
+            right = new Distance[midpoint];
+        } else {
+            right = new Distance[midpoint + 1];
+        }
+
+        for(int i=0; i < midpoint; i++) {
+            left[i] = array[i];
+        }
+
+        for(int j=0; j < right.length; j++) {
+            right[j] = array[midpoint+j];
+        }
+
+        Distance[] result = new Distance[array.length];
+        left = mergeSort(left);
+        right = mergeSort(right);
+        result = merge(left, right);
+        return result;
+    }
+
+    public Distance[] merge(Distance[] left, Distance[] right) {
+        Distance[] result = new Distance[left.length + right.length];
+        int leftPointer, rightPointer, resultPointer;
+        leftPointer = rightPointer = resultPointer = 0;
+        while(leftPointer < left.length || rightPointer < right.length) {
+            if(leftPointer < left.length && rightPointer < right.length) {
+                if(left[leftPointer].getDistance() < right[rightPointer].getDistance()) {
+                    result[resultPointer++] = left[leftPointer++];
+                } else {
+                    result[resultPointer++] = right[rightPointer++];
+                }
+
+            }
+            else if(leftPointer < left.length) {
+                result[resultPointer++] = left[leftPointer++];
+            }
+            else if(rightPointer < right.length) {
+                result[resultPointer++] = right[rightPointer++];
+            }
+        }
+        return result;
     }
 
     public boolean addCredentials(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
@@ -968,14 +1148,13 @@ public class CompanyDataAccessService implements CompanyDao {
             String state = createAccount.getState();
             String ZIP = createAccount.getZIP();
 
-            Double[] latLng = getLatLng(billing, city, state, ZIP);
+            String[] latLng = getLatLng(billing, city, state, ZIP);
             if (latLng[0] == null) {
-                if (latLng[2] == null) {
-                    throw new ApiRequestException("Error Validating Your Address - Please Try Again Later");
+                if (latLng[3] == null) {
+                    throw new ApiRequestException("Error Creating an Account at this Time");
                 }
                 throw new ApiRequestException("Invalid Address");
             }
-
 
             String[] address;
             if (createAccount.getBilling() == null || createAccount.getCity() == null || createAccount.getState() == null || createAccount.getZIP() == null) {
@@ -999,7 +1178,7 @@ public class CompanyDataAccessService implements CompanyDao {
         return true;
     }
 
-    public Double[] getLatLng(String billing, String city, String state, String ZIP) throws IOException, InterruptedException {
+    public String[] getLatLng(String billing, String city, String state, String ZIP) throws IOException, InterruptedException {
         billing = billing.replace(' ', '+');
         city = city.replace(' ', '+');
         final String POSTS_API_URL = "https://maps.googleapis.com/maps/api/geocode/json?address=" + billing + ",+" + city + ",+" + state + "&key=" + googleGeocodeKey;
@@ -1013,13 +1192,13 @@ public class CompanyDataAccessService implements CompanyDao {
         String s = response.body();
         org.json.JSONObject obj = new org.json.JSONObject(s);
 
-        Double[] values = new Double[3];
+        String[] values = new String[3];
         try {
             if (obj.getString("status").equals("ZERO_RESULTS")) {
-                System.out.println("oof 1");
                 values[0] = null;
                 values[1] = null;
-                values[2] = 0.0;
+                values[2] = null;
+                values[2] = "0.0";
                 return values;
                 //throw new ApiRequestException("Invalid Address");
             }
@@ -1030,20 +1209,23 @@ public class CompanyDataAccessService implements CompanyDao {
             if (res.getBoolean("partial_match")) {
                 values[0] = null;
                 values[1] = null;
-                values[2] = 0.0;
-                System.out.println("oof 2");
+                values[2] = null;
+                values[3] = "0.0";
                 return values;
+                //throw new ApiRequestException("Invalid Address");
             }
         } catch (Exception e) {
             if (res.length() != 0) {
-                values[0] = loc.getDouble("lat");
-                values[1] = loc.getDouble("lng");
+                values[0] = Double.toString(loc.getDouble("lat"));
+                values[1] = Double.toString(loc.getDouble("lng"));
+                values[2] = res.getString("place_id");
                 return values;
             }
         }
         values[0] = null;
         values[1] = null;
         values[2] = null;
+        values[3] = null;
         return values;
     }
 

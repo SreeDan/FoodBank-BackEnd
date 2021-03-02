@@ -3,20 +3,27 @@ package com.sree.foodbank.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Location {
-    private final double lat;
-    private final double lng;
+    private final Double lat;
+    private final Double lng;
+    private final String state;
 
-    public Location(@JsonProperty("lat") double lat,
-                    @JsonProperty("lng") double lng) {
+    public Location(@JsonProperty("lat") Double lat,
+                    @JsonProperty("lng") Double lng,
+                    @JsonProperty("state") String state) {
         this.lat = lat;
         this.lng = lng;
+        this.state = state;
     }
 
-    public double getLat() {
+    public Double getLat() {
         return lat;
     }
 
-    public double getLng() {
+    public Double getLng() {
         return lng;
+    }
+
+    public String getState() {
+        return state;
     }
 }

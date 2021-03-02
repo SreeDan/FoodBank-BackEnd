@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface CompanyDao {
 
-    List<CompanyReturn> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException;
+    List<CompanyInfo> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException;
 
     String login(Login login) throws SQLException;
 
@@ -39,7 +39,7 @@ public interface CompanyDao {
 
     List<CompanyReturn> filterByFood(CompanyFilter companyFilter) throws SQLException;
 
-    List<CompanyReturn> selectCompanyById(BigDecimal id);
+    List<CompanyReturn> selectCompanyById(BigDecimal id, Double distance);
 
     List<CompanyNeededFood> getCompanyNeededFoodById(BigDecimal id);
 
@@ -82,7 +82,7 @@ public interface CompanyDao {
 
     boolean createAccount(CreateAccount createAccount) throws SQLException;
 
-    CompanyReturn locationFiltering(Location location);
+    List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException;
 
     //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
 }
