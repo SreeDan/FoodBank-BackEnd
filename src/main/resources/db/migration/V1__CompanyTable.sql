@@ -11,8 +11,9 @@ CREATE TABLE company (
     Class VARCHAR(10),
     Image BYTEA,
     ImageType VARCHAR(100),
-    Lat DECIMAL (10, 30),
-    Long DECIMAL (10, 30)
+    Lat VARCHAR(100),
+    Long Varchar(100),
+    place_id VARCHAR(500)
 );
 CREATE TABLE food (
     FoodId DECIMAL(65, 0) PRIMARY KEY NOT NULL,
@@ -37,3 +38,5 @@ CREATE TABLE credentials (
     Password VARCHAR(100),
     Id DECIMAL(65, 0)
 );
+
+INSERT INTO status (StatusName) VALUES ('processing'), ('accepted'), ('declined'), ('ready'), ('delivered');
