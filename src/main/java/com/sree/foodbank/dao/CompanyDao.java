@@ -84,5 +84,8 @@ public interface CompanyDao {
 
     List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException;
 
+    void checkGoogleAccount(Token token) throws SQLException, GeneralSecurityException, IOException;
+
+    boolean createGAccount(CreateAccount createAccount) throws SQLException;
     //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
 }

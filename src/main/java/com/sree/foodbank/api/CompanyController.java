@@ -71,9 +71,10 @@ public class CompanyController {
     }
 
     @PostMapping(path = "/gauthenticate")
-    public boolean createGJwtAuthenticationToken(@RequestBody TokenTest tokenTest, HttpServletRequest request, HttpServletResponse response, TimeZone timeZone) {
+    public boolean createGJwtAuthenticationToken(@RequestBody Token token, HttpServletRequest request, HttpServletResponse response, TimeZone timeZone) throws GeneralSecurityException, IOException, SQLException {
         //Cookie cookie = new Cookie("gtoken", tokenTest.getToken());
-        Cookie cookie = new Cookie("token", tokenTest.getToken());
+        companyService.checkGoogleAccount(token);
+        Cookie cookie = new Cookie("token", token.getToken());
         cookie.setHttpOnly(true);
         cookie.setPath("/");
         response.addCookie(cookie);
@@ -88,6 +89,11 @@ public class CompanyController {
         cookie.setPath("/");
         response.addCookie(cookie);
         return true;
+    }
+
+    @PostMapping(path = "/gaccount")
+    public boolean createGAccount(@RequestBody @Valid @NonNull CreateAccount createAccount) throws SQLException {
+        return companyService.createGAccount(createAccount);
     }
 
     @GetMapping(path = "/authenticate")

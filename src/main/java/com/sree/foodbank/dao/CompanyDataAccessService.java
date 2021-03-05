@@ -22,6 +22,7 @@ import com.sree.foodbank.model.*;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.apache.commons.io.FileUtils;
 import org.json.simple.JSONArray;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1139,7 +1140,7 @@ public class CompanyDataAccessService implements CompanyDao {
     }
 
     public boolean addCredentials(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
-        final String sql = "INSERT INTO company (personid, companyname, email, class, address) VALUES (?, ?, ?, ?, ?::JSON)";
+        final String sql = "INSERT INTO company (personid, companyname, email, class, address, availableFood, lat, long, place_id, image, imagetype) VALUES (?, ?, ?, ?, ?::JSON, ?, ?, ?, ?, ?, ?)";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
 
@@ -1162,12 +1163,40 @@ public class CompanyDataAccessService implements CompanyDao {
             } else {
                 address = new String[] {"{\"ZIP\": \"" + ZIP + "\", \"City\": \"" + city + "\", \"State\": \"" + state + "\", \"Street\": \"" + billing + "\"}"};
             }
+            Array availableFoodArray = con.createArrayOf("DECIMAL", new BigDecimal[] {});
             System.out.println(createAccount.getType());
+
+
+            String path = "path/to/nopfp.png";
+            byte[] fileContent = FileUtils.readFileToByteArray(new File(path));
+            String encodedString = Base64.getEncoder().encodeToString(fileContent);
+            System.out.println(encodedString);
+
+            String[] strings = {"data:image/png;base64,", encodedString};
+            String extension = "png";
+            String fullExtension = "data:image/png;base64,";
+
+            byte[] data = DatatypeConverter.parseBase64Binary(strings[1]);
+            File file = new File(path);
+            try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file))) {
+                outputStream.write(data);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            File newFile = new File(path);
+            FileInputStream fis = new FileInputStream(file);
+
             pst.setBigDecimal(1, id);
             pst.setString(2, name);
             pst.setString(3, createAccount.getEmail());
             pst.setString(4, createAccount.getType());
             pst.setObject(5, address[0]);
+            pst.setArray(6, availableFoodArray);
+            pst.setString(7, latLng[0]);
+            pst.setString(8, latLng[1]);
+            pst.setString(9, latLng[2]);
+            pst.setBinaryStream(10, fis, newFile.length());
+            pst.setString(11, fullExtension);
             pst.executeUpdate();
             return true;
         } catch (InterruptedException e) {
@@ -1200,7 +1229,6 @@ public class CompanyDataAccessService implements CompanyDao {
                 values[2] = null;
                 values[3] = "0.0";
                 return values;
-                //throw new ApiRequestException("Invalid Address");
             }
         } catch (Exception e) {}
         org.json.JSONObject res = obj.getJSONArray("results").getJSONObject(0);
@@ -1212,7 +1240,6 @@ public class CompanyDataAccessService implements CompanyDao {
                 values[2] = null;
                 values[3] = "0.0";
                 return values;
-                //throw new ApiRequestException("Invalid Address");
             }
         } catch (Exception e) {
             if (res.length() != 0) {
@@ -1227,6 +1254,88 @@ public class CompanyDataAccessService implements CompanyDao {
         values[2] = null;
         values[3] = null;
         return values;
+    }
+
+    @Override
+    public void checkGoogleAccount(Token token) throws SQLException, GeneralSecurityException, IOException {
+        BigDecimal id = googleToken(token.getToken());
+        final String sql = "SELECT * FROM company WHERE personid = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setBigDecimal(1, id);
+            ResultSet rs = pst.executeQuery();
+            if (!rs.next()) {
+                throw new ApiRequestException("No Account");
+            }
+        }
+    }
+
+    @Override
+    public boolean createGAccount(CreateAccount createAccount) throws SQLException {
+        final String sql = "INSERT INTO company (personid, companyname, availablefood, address, class, email, image, imagetype) VALUES (?, ?, ?, ?::JSON, ?, ?, ?, ?)";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            BigDecimal id = googleToken(createAccount.getToken());
+            BigDecimal[] availableFood = {};
+            Array availableFoodArray = con.createArrayOf("DECIMAL", availableFood);
+
+            String billing = createAccount.getBilling();
+            String city = createAccount.getCity();
+            String state = createAccount.getState();
+            String ZIP = createAccount.getZIP();
+
+            String[] latLng = getLatLng(billing, city, state, ZIP);
+            if (latLng[0] == null) {
+                if (latLng[3] == null) {
+                    throw new ApiRequestException("Error Validating Your Address - Please Try Again Later");
+                }
+                throw new ApiRequestException("Invalid Address");
+            }
+
+            String[] address;
+            if (createAccount.getBilling() == null || createAccount.getCity() == null || createAccount.getState() == null || createAccount.getZIP() == null) {
+                address = new String[] {"{\"ZIP\": \"null\", \"City\": \"null\", \"State\": \"null\", \"Street\": \"null\"}"};
+            } else {
+                address = new String[] {"{\"ZIP\": \"" + ZIP + "\", \"City\": \"" + city + "\", \"State\": \"" + state + "\", \"Street\": \"" + billing + "\"}"};
+            }
+
+            String path = "path/to/nopfp.png";
+            byte[] fileContent = FileUtils.readFileToByteArray(new File(path));
+            String encodedString = Base64.getEncoder().encodeToString(fileContent);
+            System.out.println(encodedString);
+
+            String[] strings = {"data:image/png;base64,", encodedString};
+            String extension = "png";
+            String fullExtension = "data:image/png;base64,";
+
+            byte[] data = DatatypeConverter.parseBase64Binary(strings[1]);
+            File file = new File(path);
+            try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file))) {
+                outputStream.write(data);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            File newFile = new File(path);
+            FileInputStream fis = new FileInputStream(file);
+
+            pst.setBigDecimal(1, id);
+            pst.setString(2, createAccount.getName());
+            pst.setObject(3, availableFoodArray);
+            pst.setObject(4, address[0]);
+            pst.setString(5, createAccount.getType());
+            pst.setString(6, createAccount.getEmail());
+            pst.setBinaryStream(7, fis, newFile.length());
+            pst.setString(8, fullExtension);
+            pst.executeUpdate();
+
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     public BigDecimal[] getFoodFromId(BigDecimal id) throws SQLException {
@@ -1280,7 +1389,8 @@ public class CompanyDataAccessService implements CompanyDao {
             tempString.append(", {\"value\": \"").append(foodNameToId(foodName[x])).append("\", \"label\": \"").append(foodName[x]).append("\"}");
         }
         String newThing = "";
-        newThing += "[" + tempString.substring(2) + "]";
+        if (tempString.length() != 0)
+            newThing += "[" + tempString.substring(2) + "]";
         return newThing;
     }
 

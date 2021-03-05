@@ -113,4 +113,12 @@ public class CompanyService {
     public List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException {
         return companyDao.locationFiltering(location);
     }
+
+    public void checkGoogleAccount(Token token) throws GeneralSecurityException, SQLException, IOException {
+        companyDao.checkGoogleAccount(token);
+    }
+
+    public boolean createGAccount(CreateAccount createAccount) throws SQLException {
+        return companyDao.createGAccount(createAccount);
+    }
 }

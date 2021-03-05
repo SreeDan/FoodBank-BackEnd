@@ -3,6 +3,7 @@ package com.sree.foodbank.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class CreateAccount {
+    private final String token;
     private final String email;
     private final String username;
     private final String password;
@@ -13,7 +14,8 @@ public class CreateAccount {
     private final String state;
     private final String ZIP;
 
-    public CreateAccount(@JsonProperty("email") String email,
+    public CreateAccount(@JsonProperty("token") String token,
+                         @JsonProperty("email") String email,
                          @JsonProperty("username") String username,
                          @JsonProperty("password") String password,
                          @JsonProperty("name") String name,
@@ -22,6 +24,7 @@ public class CreateAccount {
                          @JsonProperty("city") String city,
                          @JsonProperty("state") String state,
                          @JsonProperty("ZIP") String ZIP) {
+        this.token = token;
         this.email = email;
         this.username = username;
         this.password = password;
@@ -31,6 +34,10 @@ public class CreateAccount {
         this.city = city;
         this.state = state;
         this.ZIP = ZIP;
+    }
+
+    public String getToken() {
+        return token;
     }
 
     public String getEmail() {
