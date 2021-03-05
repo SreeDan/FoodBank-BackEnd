@@ -1198,7 +1198,7 @@ public class CompanyDataAccessService implements CompanyDao {
                 values[0] = null;
                 values[1] = null;
                 values[2] = null;
-                values[2] = "0.0";
+                values[3] = "0.0";
                 return values;
                 //throw new ApiRequestException("Invalid Address");
             }
