@@ -970,9 +970,9 @@ public class CompanyDataAccessService implements CompanyDao {
         double randomValue = min + (max - min) * random.nextDouble();
         BigDecimal id = new BigDecimal(randomValue);
 
+        checkUsernameAvailability(createAccount);
 
-        System.out.println("billing " + createAccount.getBilling());
-        boolean status = addCredentials(id, createAccount.getName(), createAccount);
+        boolean status = addInfo(id, createAccount.getName(), createAccount);
         if (status) {
             try (Connection con = DriverManager.getConnection(url, user, password);
                  PreparedStatement pst = con.prepareStatement(sql)) {
@@ -984,6 +984,20 @@ public class CompanyDataAccessService implements CompanyDao {
             }
         }
         return false;
+    }
+
+    public void checkUsernameAvailability(CreateAccount createAccount) {
+        final String sql = "SELECT * FROM credentials WHERE username = ?";
+        try (Connection con = DriverManager.getConnection(url, user, password);
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, createAccount.getUsername());
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                throw new ApiRequestException("Username Taken");
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
     }
 
     @Override
@@ -1139,7 +1153,7 @@ public class CompanyDataAccessService implements CompanyDao {
         return result;
     }
 
-    public boolean addCredentials(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
+    public boolean addInfo(BigDecimal id, String name, CreateAccount createAccount) throws SQLException {
         final String sql = "INSERT INTO company (personid, companyname, email, class, address, availableFood, lat, long, place_id, image, imagetype) VALUES (?, ?, ?, ?, ?::JSON, ?, ?, ?, ?, ?, ?)";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
