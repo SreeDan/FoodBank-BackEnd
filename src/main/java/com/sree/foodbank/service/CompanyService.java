@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class CompanyService {
+public class CompanyService { //  Service layer of the API
     private final CompanyDao companyDao;
 
     @Autowired
@@ -42,24 +42,12 @@ public class CompanyService {
         return companyDao.getAllFood();
     }
 
-    public CompanyReturn addCompany(String token, Company company) throws GeneralSecurityException, IOException {
-        return companyDao.insertCompany(token, company);
-    }
-
-    public int addFood(String token, CompanyFood companyFood) throws GeneralSecurityException, IOException, SQLException {
-        return companyDao.insertFood(token, companyFood);
-    }
-
     public List<CompanyReturn> filterFood(CompanyFilter companyFilter) throws SQLException {
         return companyDao.filterByFood(companyFilter);
     }
 
     public List<CompanyReturn> getAllCompanies(CompanyReturn companyReturn) throws SQLException {
         return companyDao.selectAllCompanies(companyReturn);
-    }
-
-    public List<CompanyReturnFood> getCompanyFood() {
-        return companyDao.selectCompanyFood();
     }
 
     public List<CompanyReturn> getCompanybyId(BigDecimal id, Double distance) {
@@ -70,20 +58,16 @@ public class CompanyService {
         return companyDao.getCompanyNeededFoodById(id);
     }
 
-    public int deleteCompany(BigDecimal id) {
-        return companyDao.deleteCompanybyId(id);
+    public int deleteCompany(String token) throws GeneralSecurityException, IOException, SQLException {
+        return companyDao.deleteCompanybyId(token);
     }
 
     public int updateCompany(String token, CompanyInfo companyUpdate) throws GeneralSecurityException, IOException, SQLException, InterruptedException {
         return companyDao.updateCompanybyId(token, companyUpdate);
     }
 
-    public int updateFood(String token, List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException {
+    public int updateFood(String token, CompanyUpdateFood foodUpdate) throws GeneralSecurityException, IOException, SQLException {
         return companyDao.updateFood(token, foodUpdate);
-    }
-
-    public int deleteFood(BigDecimal id, String token) throws GeneralSecurityException, IOException {
-        return companyDao.deleteFood(id, token);
     }
 
     public int requestFood(String token, CompanyRequest companyRequest) throws GeneralSecurityException, SQLException, IOException, MessagingException {
@@ -98,10 +82,6 @@ public class CompanyService {
         return companyDao.updateRequest(companyRequest);
     }
 
-    public int addImage(ImageEncode imageEncode) throws FileNotFoundException, SQLException {
-        return companyDao.addImage(imageEncode);
-    }
-
     public void sendEmail() throws IOException, ParseException {
         companyDao.sendEmail(new String[0], "");
     }
@@ -112,6 +92,10 @@ public class CompanyService {
 
     public List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException {
         return companyDao.locationFiltering(location);
+    }
+
+    public List<CompanyReturn> bothFilter(CompanyBothFilter companyBothFilter) throws InterruptedException, SQLException, IOException {
+        return companyDao.bothFilter(companyBothFilter);
     }
 
     public void checkGoogleAccount(Token token) throws GeneralSecurityException, SQLException, IOException {

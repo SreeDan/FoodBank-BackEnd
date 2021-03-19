@@ -42,7 +42,7 @@ import static javax.crypto.Cipher.SECRET_KEY;
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 @RequestMapping("/api/v1/company")
 @RestController
-public class CompanyController {
+public class CompanyController { //  Controller layer of the API
     private final CompanyService companyService;
 
     @Autowired
@@ -50,44 +50,27 @@ public class CompanyController {
         this.companyService = companyService;
     }
 
-    @GetMapping(path = "/email/test")
-    public void sendEmail() throws IOException, ParseException {
-        companyService.sendEmail();
-    }
-
-    @GetMapping(path = "/jwt")
-    public void decodeJWT() throws UnsupportedEncodingException {
-        Instant now = Instant.now();
-        byte[] secret = Base64.getDecoder().decode("decode");
-        String jwt = Jwts.builder()
-                .setSubject("sub")
-                .setAudience("Audience")
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plus(1, ChronoUnit.DAYS)))
-                .signWith(Keys.hmacShaKeyFor(secret))
-                .compact();
-        System.out.println(jwt);
-
+    @GetMapping(path = "/key")
+    public String getGKey() { //  This returns the google auth key for logging in. The server does this so the auth key is not stored on the front end where someone could see it.
+        return "google-auth-key";
     }
 
     @PostMapping(path = "/gauthenticate")
     public boolean createGJwtAuthenticationToken(@RequestBody Token token, HttpServletRequest request, HttpServletResponse response, TimeZone timeZone) throws GeneralSecurityException, IOException, SQLException {
-        //Cookie cookie = new Cookie("gtoken", tokenTest.getToken());
         companyService.checkGoogleAccount(token);
         Cookie cookie = new Cookie("token", token.getToken());
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        response.addCookie(cookie);
+        response.addCookie(cookie); //  Issues an HTTPOnly cookie to the user
         return true;
     }
 
     @GetMapping(path = "/gauthenticate")
     public boolean deleteGJwtAuthenticationToken(HttpServletResponse response) {
-        //Cookie cookie = new Cookie("gtoken", null);
         Cookie cookie = new Cookie("token", null);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        response.addCookie(cookie);
+        response.addCookie(cookie); //  Deletes the user's HTTPOnly cookie
         return true;
     }
 
@@ -101,72 +84,28 @@ public class CompanyController {
         Cookie cookie = new Cookie("token", null);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        response.addCookie(cookie);
+        response.addCookie(cookie); //  Issues an HTTPOnly cookie to the user
         return true;
     }
 
-    @GetMapping(path = "/tokens")
-    public boolean setTokens(HttpServletResponse response) {
-        Cookie sCookie = new Cookie("token", null);
-        sCookie.setHttpOnly(true);
-        sCookie.setPath("/");
-        response.addCookie(sCookie);
-        /*Cookie gCookie = new Cookie("gtoken", null);
-        gCookie.setHttpOnly(true);
-        gCookie.setPath("/");
-        response.addCookie(gCookie);*/
-        return true;
-    }
-
-    @PostMapping(path = "/dashboard/access")
-    public boolean accessDashboard(@CookieValue(name = "signedIn") Boolean signedIn, @CookieValue(name = "gsignedIn") Boolean gsignedIn) {
-        return signedIn || gsignedIn;
-    }
-
-    @PostMapping(path = "/dashboard")
+    @GetMapping(path = "/dashboard")
     public List<CompanyInfo> dashboard(@CookieValue("token") String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException {
         return companyService.dashboard(token, companyDashboard);
     }
 
-    @PostMapping(path = "/readauthenticate")
-    public boolean readToken(@CookieValue(name = "token") String token, @RequestBody TokenBody tokenBody) {
-        System.out.println("The token is " + token);
-        System.out.println(tokenBody.getTest());
-        return true;
-    }
-
     @PostMapping(path = "/login")
-    public boolean login(@RequestBody Login login, HttpServletResponse response, TimeZone timeZone) throws SQLException {
+    public boolean login(@RequestBody Login login, HttpServletResponse response) throws SQLException {
         String token = companyService.login(login);
         Cookie cookie = new Cookie("token", token);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        response.addCookie(cookie);
+        response.addCookie(cookie); //  Issues an HTTPOnly cookie to the user
         return true;
-    }
-
-    @GetMapping(path="/login")
-    public boolean testLogin(HttpServletResponse response) {
-        Cookie cookie = new Cookie("ntoken", "token");
-        response.addCookie(cookie);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        return true;
-    }
-
-    @PostMapping
-    public CompanyReturn addCompany(@Valid @NonNull String token, @Valid @NonNull @RequestBody Company company) throws GeneralSecurityException, IOException {
-        return companyService.addCompany(token, company);
     }
 
     @GetMapping(path = "/food")
     public List<Food> getAllFood() {
         return companyService.getAllFood();
-    }
-
-    @PostMapping(path = "/companyfood")
-    public void addFood(@Valid @NonNull String token, @Valid @NonNull @RequestBody CompanyFood companyFood) throws GeneralSecurityException, IOException, SQLException {
-        companyService.addFood(token, companyFood);
     }
 
     @PostMapping(path = "/filter")
@@ -176,28 +115,12 @@ public class CompanyController {
 
     @PostMapping(path = "/request")
     public void requestFood(@CookieValue(name = "token") String token, @Valid @NonNull @RequestBody CompanyRequest companyRequest) throws GeneralSecurityException, IOException, SQLException, MessagingException {
-        //g
         companyService.requestFood(token, companyRequest);
-    }
-
-    @GetMapping("/all-cookies")
-    public String readAllCookies(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            return Arrays.stream(cookies)
-                    .map(c -> c.getName() + "=" + c.getValue()).collect(Collectors.joining(", "));
-        }
-        return "No cookies";
     }
 
     @GetMapping
     public List<CompanyReturn> getAllCompanies(CompanyReturn companyReturn) throws SQLException {
         return companyService.getAllCompanies(companyReturn);
-    }
-
-    @GetMapping(path = "/companyfood")
-    public List<CompanyReturnFood> getCompanyFood() {
-        return companyService.getCompanyFood();
     }
 
     @GetMapping(path = "{id}")
@@ -212,24 +135,12 @@ public class CompanyController {
 
     @PostMapping(path = "/request/get")
     public List<CompanyReturnRequest> getRequest(@CookieValue(name = "token") String token) throws SQLException, GeneralSecurityException, IOException {
-        //g
         return companyService.getRequest(token);
     }
 
-    @PutMapping(path = "/image")
-    public int addImage(@Valid @NonNull @RequestBody ImageEncode imageEncode) throws FileNotFoundException, SQLException {
-        return companyService.addImage(imageEncode);
-    }
-
-
     @DeleteMapping(path = "{id}")
-    public void deleteCompany(@PathVariable("id") BigDecimal id) {
-        companyService.deleteCompany(id);
-    }
-
-    @DeleteMapping(path = "/food")
-    public void deleteFood(BigDecimal id, @Valid @NonNull String token) throws GeneralSecurityException, IOException {
-        companyService.deleteFood(id, token);
+    public void deleteCompany(@CookieValue(name = "token") String token) throws GeneralSecurityException, IOException, SQLException {
+        companyService.deleteCompany(token);
     }
 
     @PutMapping(path = "/")
@@ -238,7 +149,7 @@ public class CompanyController {
     }
 
     @PutMapping(path = "/food")
-    public void updateFood(@CookieValue(name = "token") String token, @Valid @NonNull @RequestBody List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException {
+    public void updateFood(@CookieValue(name = "token") String token, @Valid @NonNull @RequestBody CompanyUpdateFood foodUpdate) throws GeneralSecurityException, IOException, SQLException {
         companyService.updateFood(token, foodUpdate);
     }
 
@@ -252,9 +163,14 @@ public class CompanyController {
         return companyService.createAccount(createAccount);
     }
 
-    @PostMapping(path="/location")
+    @PostMapping(path = "/location")
     public List<CompanyReturn> locationFiltering(@Valid @NonNull @RequestBody Location location) throws SQLException, IOException, InterruptedException {
         return companyService.locationFiltering(location);
+    }
+
+    @PostMapping(path = "/bothfilter")
+    public List<CompanyReturn> bothFilter(@Valid @NonNull @RequestBody CompanyBothFilter companyBothFilter) throws InterruptedException, SQLException, IOException {
+        return companyService.bothFilter(companyBothFilter);
     }
 
 }

@@ -20,7 +20,7 @@ public class ApiExceptionHandler {
                 e.getMessage(),
                 badRequest,
                 ZonedDateTime.now(ZoneId.of("Z"))
-        );
+        ); //  Creates the custom API Exception
 
         return new ResponseEntity<>(apiException, badRequest);
     }

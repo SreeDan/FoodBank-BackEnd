@@ -15,6 +15,6 @@ public class PostgresDatasource {
         return DataSourceBuilder
                 .create()
                 .type(HikariDataSource.class)
-                .build();
+                .build(); //  Connects to the database
     }
 }

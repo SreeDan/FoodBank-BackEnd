@@ -13,79 +13,51 @@ import java.util.List;
 
 public interface CompanyDao {
 
-    List<CompanyInfo> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException;
+    List<CompanyInfo> dashboard(String token, CompanyDashboard companyDashboard) throws GeneralSecurityException, IOException; //  Gives the data for the fashboard
 
-    String login(Login login) throws SQLException;
+    String login(Login login) throws SQLException; //  Logs in the user and gives the user a token to authenticate themselves with the server
 
-    List<Food> getAllFood();
+    List<Food> getAllFood(); //  Returns all food in the database
 
-    CompanyReturn insertCompany(BigDecimal id, String token, Company company) throws GeneralSecurityException, IOException;
+    List<CompanyReturn> selectAllCompanies(CompanyReturn companyReturn) throws SQLException; //  Returns a list of all the food banks
 
-    default CompanyReturn insertCompany(String token, Company company) throws GeneralSecurityException, IOException {
-        BigDecimal id = new BigDecimal("0");
-        return insertCompany(id, token, company);
-    }
+    List<CompanyFood> selectCompanyAvailable(String token) throws GeneralSecurityException, IOException;
 
-    int insertFood(BigDecimal id, String token, CompanyFood companyFood) throws GeneralSecurityException, IOException;
+    List<CompanyFood> selectCompanyNeeded(String token) throws GeneralSecurityException, IOException;
 
-    default int insertFood(String token, CompanyFood companyFood) throws GeneralSecurityException, IOException, SQLException {
-        BigDecimal id = new BigDecimal("0");
-        return insertFood(id, token, companyFood);
-    }
+    List<CompanyReturn> filterByFood(CompanyFilter companyFilter) throws SQLException; // Returns a list of food banks based on food being filtered
 
-    List<CompanyReturn> selectAllCompanies(CompanyReturn companyReturn) throws SQLException;
+    List<CompanyReturn> selectCompanyById(BigDecimal id, Double distance); //  Returns a food bank based on the id
 
-    List<CompanyReturnFood> selectCompanyFood();
+    List<CompanyNeededFood> getCompanyNeededFoodById(BigDecimal id); //  Returns food that a food bank needs
 
-    List<CompanyReturn> filterByFood(CompanyFilter companyFilter) throws SQLException;
+    int deleteCompanybyId(String token) throws GeneralSecurityException, IOException, SQLException;
 
-    List<CompanyReturn> selectCompanyById(BigDecimal id, Double distance);
+    int updateCompanybyId(String token, CompanyInfo companyInfo) throws GeneralSecurityException, IOException, SQLException, InterruptedException; //  Updates the information of a company
 
-    List<CompanyNeededFood> getCompanyNeededFoodById(BigDecimal id);
+    int updateFood(String token, CompanyUpdateFood foodUpdate) throws GeneralSecurityException, IOException, SQLException; //  Updates a food bank's food
 
-    int deleteCompanybyId(BigDecimal id);
+    int requestFood(String token, CompanyRequest companyRequest) throws SQLException, IOException, GeneralSecurityException, MessagingException; //  Creates a request to a food bank from another user
 
-    int deleteFood(BigDecimal id, String token) throws GeneralSecurityException, IOException;
+    int updateRequest(CompanyRequest companyRequest) throws SQLException, GeneralSecurityException, IOException; // Updates a request
 
-    int updateCompanybyId(String token, CompanyInfo companyInfo) throws GeneralSecurityException, IOException, SQLException, InterruptedException;
+    List<CompanyReturnRequest> getRequest (String token) throws SQLException, GeneralSecurityException, IOException; //  Returns all requests for a user
 
-    int updateFood(String token, List<Food> foodUpdate) throws GeneralSecurityException, IOException, SQLException;
+    String foodIdToName(BigDecimal foodId) throws SQLException; //  Converts food ids to food names
 
-    int requestFood(String token, CompanyRequest companyRequest) throws SQLException, IOException, GeneralSecurityException, MessagingException;
+    BigDecimal foodNameToId(String foodName) throws SQLException; //  Converts food names to food ids
 
-    int updateRequest(CompanyRequest companyRequest) throws SQLException, GeneralSecurityException, IOException;
+    BigDecimal googleToken(String token) throws GeneralSecurityException, IOException; //  Decodes a Google issued token for authentication
 
-    List<CompanyReturnRequest> getRequest (String token) throws SQLException, GeneralSecurityException, IOException;
+    void sendEmail(String[] Info, String date) throws IOException, ParseException; //  Sends an email to the user that the request has been confirmed
 
+    boolean createAccount(CreateAccount createAccount) throws SQLException; //  Creates an account
 
-    /*default int updateFood(CompanyFood companyFood) throws GeneralSecurityException, IOException {
-        BigDecimal id = new BigDecimal("0");
-        return updateFood(id, companyFood);
-    }
+    List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException; //  Returns food banks based on a user's location and sorts the food banks from closest to farthest
 
-     */
-    /*int encode(ImageEncode base64) throws FileNotFoundException, SQLException;
+    List<CompanyReturn> bothFilter(CompanyBothFilter companyBothFilter) throws SQLException, IOException, InterruptedException;
 
-    List<ImageEncode> getEncode(ImageEncode imageEncode) throws FileNotFoundException, SQLException;
+    void checkGoogleAccount(Token token) throws SQLException, GeneralSecurityException, IOException; //  Checks if a Google user is logging in for the first time
 
-     */
-
-    int addImage(ImageEncode imageEncode) throws FileNotFoundException, SQLException;
-
-    String foodIdToName(BigDecimal foodId) throws SQLException;
-
-    BigDecimal foodNameToId(String foodName) throws SQLException;
-
-    BigDecimal googleToken(String token) throws GeneralSecurityException, IOException;
-
-    void sendEmail(String[] Info, String date) throws IOException, ParseException;
-
-    boolean createAccount(CreateAccount createAccount) throws SQLException;
-
-    List<CompanyReturn> locationFiltering(Location location) throws SQLException, IOException, InterruptedException;
-
-    void checkGoogleAccount(Token token) throws SQLException, GeneralSecurityException, IOException;
-
-    boolean createGAccount(CreateAccount createAccount) throws SQLException;
-    //List<CompanyReturn> test(Test test) throws ParseException, SQLException;
+    boolean createGAccount(CreateAccount createAccount) throws SQLException; //  If a Google user is logging in for the first time, this adds the Google account to the records.
 }
