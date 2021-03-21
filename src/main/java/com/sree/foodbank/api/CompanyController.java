@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 
 import static javax.crypto.Cipher.SECRET_KEY;
 
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "sreedan.github.io", allowCredentials = "true")
 @RequestMapping("/api/v1/company")
 @RestController
 public class CompanyController { //  Controller layer of the API

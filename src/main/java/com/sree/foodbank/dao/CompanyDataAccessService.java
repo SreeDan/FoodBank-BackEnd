@@ -69,11 +69,16 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
     {
         try {
             //  Opens and stores the secret information
-            File postgresObj = new File("path/to/postgres/secret");
-            File googleObj = new File("path/to/google/secret");
-            File sendGridObj = new File("path/to/sendgrid/secret");
-            File jwtObj = new File("path/to/jwt/secret");
-            File emailObj = new File("path/to/email/secret");
+            String postgresPath = new File("src/main/java/com/sree/foodbank/secret/PostgresSecret.txt").getAbsolutePath();
+            File postgresObj = new File(postgresPath);
+            String googlePath = new File("src/main/java/com/sree/foodbank/secret/GoogleSecret.txt").getAbsolutePath();
+            File googleObj = new File(googlePath);
+            String sendGridPath = new File("src/main/java/com/sree/foodbank/secret/SendGridSecret.txt").getAbsolutePath();
+            File sendGridObj = new File(sendGridPath);
+            String jwtPath = new File("src/main/java/com/sree/foodbank/secret/JWTSecret.txt").getAbsolutePath();
+            File jwtObj = new File(jwtPath);
+            String emailPath = new File("src/main/java/com/sree/foodbank/secret/Email.txt").getAbsolutePath();
+            File emailObj = new File(emailPath);
             Scanner postgresReader = new Scanner(postgresObj);
             Scanner googleReader = new Scanner(googleObj);
             Scanner sendGridReader = new Scanner(sendGridObj);
@@ -161,14 +166,18 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             */
             if (neededFood != null) {
                 try {
-                    neededFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(neededFood));
+                    if (foodConvertIdtoNameJson(neededFood).length() != 0) {
+                        neededFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(neededFood));
+                    }
                 } catch (ParseException e) {
                     e.printStackTrace();
                 }
             }
             if (availableFood != null) {
                 try {
-                    availableFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(availableFood));
+                    if (foodConvertIdtoNameJson(availableFood).length() != 0) {
+                        availableFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(availableFood));
+                    }
                 } catch (ParseException e) {
                     e.printStackTrace();
                 }
@@ -268,7 +277,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
         });
     }
 
-    public List<CompanyReturn> returnCompany(String sql) {
+    public List<CompanyReturn> returnCompany(String sql, Double distance) {
         return jdbcTemplate.query(sql, (resultSet, i) -> {
             Integer DBId = (Integer) resultSet.getObject("id");
             String name = resultSet.getString("companyname");
@@ -288,7 +297,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
 
             if (neededFood != null) {
                 try {
-                    if (foodConvertIdtoNameJson(neededFood) != null) {
+                    if (foodConvertIdtoNameJson(neededFood).length() != 0) {
                         neededFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(neededFood));
                     }
                 } catch (ParseException e) {
@@ -297,7 +306,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             }
             if (availableFood != null) {
                 try {
-                    if (foodConvertIdtoNameJson(availableFood) != null) {
+                    if (foodConvertIdtoNameJson(availableFood).length() != 0) {
                         availableFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(availableFood));
                     }
                 } catch (ParseException e) {
@@ -318,7 +327,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
                 base64Encoded = imageType + Base64.getEncoder().encodeToString(imgBytes);
             }
             String email = resultSet.getString("email");
-            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded, email, 0.0, 0.0, 0.0);
+            return new CompanyReturn(DBId, name, url, phone, neededFoodParsed, availableFoodParsed, parsedAddress, userType, base64Encoded, email, distance, 0.0, 0.0);
             //return new CompanyReturn(DBId, name, url, phone, neededFoodNames, availableFoodNames, parsedAddress, userType);
         });
     }
@@ -329,7 +338,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             The SQL statement is saying to "select all columns from the company table where the type of account is a bank". This gives the data for multiple accounts.
          */
         final String sql = "SELECT * FROM company WHERE class = 'bank'";
-        return returnCompany(sql);
+        return returnCompany(sql, 0.0);
     }
 
     @Override
@@ -348,7 +357,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             Object availableFoodJson = null;
             if (availableFood != null) {
                 try {
-                    if (foodConvertIdtoNameJson(availableFood) != null) {
+                    if (foodConvertIdtoNameJson(availableFood).length() != 0) {
                         availableFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(availableFood));
                     }
                 } catch (ParseException e) {
@@ -376,7 +385,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             Object neededFoodJson = null;
             if (neededFood != null) {
                 try {
-                    if (foodConvertIdtoNameJson(neededFood) != null) {
+                    if (foodConvertIdtoNameJson(neededFood).length() != 0) {
                         neededFoodJson = new JSONParser().parse(foodConvertIdtoNameJson(neededFood));
                     }
                 } catch (ParseException e) {
@@ -437,7 +446,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
     @Override
     public List<CompanyReturn> filterByFood(CompanyFilter companyFilter) throws SQLException {
         String newSql = filtering(companyFilter, "");
-        return returnCompany(newSql);
+        return returnCompany(newSql, 0.0);
     }
 
 
@@ -447,7 +456,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             The SQL statement is saying to "select all columns from the company table where the id is the id in the parameter". This gives the data for a single account.
          */
         final String sql = "SELECT * FROM company WHERE id = " + id;
-        return returnCompany(sql);
+        return returnCompany(sql, 0.0);
     }
 
     @Override
@@ -489,7 +498,6 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             pst.setBigDecimal(1, id);
             pst.executeUpdate();
         }
-        System.out.println("done");
         return 0;
     }
 
@@ -560,7 +568,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             }
         }
         byte[] data = DatatypeConverter.parseBase64Binary(strings[1]);
-        String path = "/path/to/image/folder/test_image." + extension;
+        String path = new File("src/main/java/com/sree/foodbank/images/test_image." + extension).getAbsolutePath();
         File file = new File(path);
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file))) {
             outputStream.write(data);
@@ -629,9 +637,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
         for (int x = 0; x < foods.size(); x++) {
             updatedFood[x] = foods.get(x).getId();
         }
-        System.out.println(Arrays.toString(updatedFood));
         final String sql = "UPDATE company SET " + foodUpdate.getType() + " = ? WHERE personid = ?";
-        System.out.println(sql);
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
             Array food = con.createArrayOf("DECIMAL", updatedFood);
@@ -682,14 +688,13 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
         final String sql = "UPDATE requests SET status = ?, datetime = ? WHERE requestId = ?";
         try (Connection con = DriverManager.getConnection(url, user, password);
              PreparedStatement pst = con.prepareStatement(sql)) {
-            Date date = companyRequest.getDate();
-            String dateString = date.toString();
+            String dateString = companyRequest.getDate();
             pst.setString(1, companyRequest.getStatus());
             pst.setString(2, dateString);
             pst.setInt(3, companyRequest.getRequestId());
             pst.executeUpdate();
-            if (companyRequest.getStatus().equals("accepted")) { //  Send an email to the requester if it is accepted.
-                String[] emailInfo = emailInfo(companyRequest.getRequestId()); //  Info about the request
+            if (companyRequest.getStatus().equals("accepted")) {
+                String[] emailInfo = emailInfo(companyRequest.getRequestId());
                 sendEmail(emailInfo, dateString);
             }
         } catch (ParseException e) {
@@ -834,7 +839,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
         Email to = new Email(info[1]);
         JSONParser parser = new JSONParser();
         JsonObject obj = new JsonParser().parse(info[3]).getAsJsonObject();
-        String address = String.join(", ", obj.get("Street").getAsString(), obj.get("City").getAsString(), obj.get("State").getAsString() + " " + obj.get("Zip").getAsString());
+        String address = String.join(", ", obj.get("Street").getAsString(), obj.get("City").getAsString(), obj.get("State").getAsString() + " " + obj.get("ZIP").getAsString());
         Content content = new Content("text/plain", "Dear " + info[0] + ", Your request to pickup food was accepted by " + info[2] +
                 ". You can pick it up at " + address + " on " + date);
         Mail mail = new Mail(from, subject, to, content);
@@ -1066,10 +1071,26 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
 
     @Override
     public List<CompanyReturn> bothFilter(CompanyBothFilter companyBothFilter) throws SQLException, IOException, InterruptedException {
+        if (companyBothFilter.getStandard()) {
+            CompanyFilter companyFilter = new CompanyFilter(companyBothFilter.getType(), companyBothFilter.getAvailableFood(), companyBothFilter.getNeededFood());
+            Location location = new Location(companyBothFilter.getLat(), companyBothFilter.getLng(), "PA", true);
+            String newSql = "SElECT * FROM company WHERE class = 'bank' AND address ->> 'State' = 'PA'";
+            List<CompanyReturn> companies = returnCompany(newSql, 0.0);
+            ArrayList<Integer> ids = new ArrayList<Integer>();
+            ArrayList<String> place_ids = new ArrayList<String>();
+            for (CompanyReturn company: companies) {
+                ids.add(company.getId());
+                place_ids.add(getPlace_Ids(company.getId()));
+            }
+            if (ids.size() == 0) {
+                throw new ApiRequestException("None");
+            }
+            return locationFilter(ids, place_ids, location);
+        }
         CompanyFilter companyFilter = new CompanyFilter(companyBothFilter.getType(), companyBothFilter.getAvailableFood(), companyBothFilter.getNeededFood());
-        Location location = new Location(companyBothFilter.getLat(), companyBothFilter.getLng(), companyBothFilter.getState());
+        Location location = new Location(companyBothFilter.getLat(), companyBothFilter.getLng(), companyBothFilter.getState(), false);
         String newSql = filtering(companyFilter, " AND address ->> 'State' = '" + location.getState() + "'");
-        List<CompanyReturn> companies = returnCompany(newSql);
+        List<CompanyReturn> companies = returnCompany(newSql, 0.0);
         ArrayList<Integer> ids = new ArrayList<Integer>();
         ArrayList<String> place_ids = new ArrayList<String>();
         for (CompanyReturn company: companies) {
@@ -1128,10 +1149,9 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             Array neededFoodArray = con.createArrayOf("DECIMAL", new BigDecimal[] {});
 
             //  Adds a standard profile picture as default
-            String path = "path/to/nopfp.png";
+            String path = new File("src/main/java/com/sree/foodbank/images/nopfp-v2.png").getAbsolutePath();
             byte[] fileContent = FileUtils.readFileToByteArray(new File(path));
             String encodedString = Base64.getEncoder().encodeToString(fileContent);
-            System.out.println(encodedString);
 
             //  Parses the image and converts it into a string and bytea for the database
             String[] strings = {"data:image/png;base64,", encodedString};
@@ -1271,7 +1291,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
             Array neededFoodArray = con.createArrayOf("DECIMAL", new BigDecimal[] {});
 
             //  Adds a standard profile picture as default
-            String path = "path/to/nopfp.png";
+            String path = new File("src/main/java/com/sree/foodbank/images/nopfp-v2.png").getAbsolutePath();
             byte[] fileContent = FileUtils.readFileToByteArray(new File(path));
             String encodedString = Base64.getEncoder().encodeToString(fileContent);
 

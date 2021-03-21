@@ -10,7 +10,8 @@ public class CompanyRequest {
     private final String requesterToken;
     private final int receiverId;
     private final String[] food;
-    private final Date date;
+    private final String date;
+    private final Boolean original;
     private final String type;
     private final String status;
 
@@ -18,7 +19,8 @@ public class CompanyRequest {
                           @JsonProperty("requestId") int requestId,
                           @JsonProperty("receiverId") int receiverId,
                           @JsonProperty("food") String[] food,
-                          @JsonProperty("date") Date date,
+                          @JsonProperty("date") String date,
+                          @JsonProperty("original") Boolean original,
                           @JsonProperty("type") String type,
                           @JsonProperty("status") String status) {
         this.requestId = requestId;
@@ -26,6 +28,7 @@ public class CompanyRequest {
         this.receiverId = receiverId;
         this.food = food;
         this.date = date;
+        this.original = original;
         this.type = type;
         this.status = status;
     }
@@ -46,8 +49,12 @@ public class CompanyRequest {
         return food;
     }
 
-    public Date getDate() {
+    public String getDate() {
         return date;
+    }
+
+    public Boolean getOriginal() {
+        return original;
     }
 
     public String getType() {
