@@ -50,11 +50,6 @@ public class CompanyController { //  Controller layer of the API
         this.companyService = companyService;
     }
 
-    @GetMapping(path = "/key")
-    public String getGKey() { //  This returns the google auth key for logging in. The server does this so the auth key is not stored on the front end where someone could see it.
-        return "google-auth-key";
-    }
-
     @PostMapping(path = "/gauthenticate")
     public boolean createGJwtAuthenticationToken(@RequestBody Token token, HttpServletRequest request, HttpServletResponse response, TimeZone timeZone) throws GeneralSecurityException, IOException, SQLException {
         companyService.checkGoogleAccount(token);

@@ -421,13 +421,13 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
                     availableFoodFilter = companyFilter.getAvailableFood();
                     availableFoodIds = foodConvertNametoId(availableFoodFilter);
                     availableFoodIdArray = con.createArrayOf("DECIMAL", availableFoodIds);
-                    newSql = "SELECT * FROM company WHERE availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'";
+                    newSql = "SELECT * FROM company WHERE availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'" + extension;
                 }
                 case "neededFood" -> { //  If the type is neededFood, change the sql statement to search for neededFood.
                     neededFoodFilter = companyFilter.getNeededFood();
                     neededFoodIds = foodConvertNametoId(neededFoodFilter);
                     neededFoodIdArray = con.createArrayOf("DECIMAL", neededFoodIds);
-                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND class = 'bank'";
+                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND class = 'bank'" + extension;
                 }
                 case "both" -> { //  If the type is both, change the sql statement to search for both.
                     neededFoodFilter = companyFilter.getNeededFood();
@@ -436,7 +436,7 @@ public class CompanyDataAccessService implements CompanyDao { //  Data Access Se
                     availableFoodIds = foodConvertNametoId(availableFoodFilter);
                     neededFoodIdArray = con.createArrayOf("DECIMAL", neededFoodIds);
                     availableFoodIdArray = con.createArrayOf("DECIMAL", availableFoodIds);
-                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'";
+                    newSql = "SELECT * FROM company WHERE neededfood @> '" + neededFoodIdArray + "' AND availablefood @> '" + availableFoodIdArray + "' AND class = 'bank'" + extension;
                 }
             }
             return newSql;
